@@ -4,10 +4,12 @@ import pandas as pd
 import os
 from multiprocessing import Pool as ThreadPool  
 
-os.chdir('/rds/general/user/dds122/ephemeral/kmer_21_txt/')
+kmer_size = 21 # ACTIONABLE: to be declared
 
+os.chdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_txt/')
+
+# import data containing accession | ribotype of all top 10 ribotype samples
 df = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/noNA_downsized.csv')
-kmer_size = 21 # to be declared
 n_threads = 1
 
 def create_csv(file):
