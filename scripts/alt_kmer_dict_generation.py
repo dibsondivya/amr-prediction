@@ -1,18 +1,20 @@
 import pandas as pd
 import os
 
-kmer_size = 17
+kmer_size = 17 ## to be declared
+os.chdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_txt/')
 
+# initialize
 sample_id = 0
 kmer_id = {}
 id_count = {}
 id_sample = {}
 id_ribotype = {}
 
+# import data of accession | ribotype
 df = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/noNA_downsized.csv')
 
-os.chdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_txt/')
-
+# iterate through the generated kmer txt files for each accession code
 for file in os.listdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_txt/'):
     if "fastq.gz" in file:
         filename = file.replace('.fastq.gz.txt', '')
@@ -34,7 +36,7 @@ for file in os.listdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)
             id_ribotype[sample_id] = int(df[df['accession'] == accession]['ribotype'])
             sample_id += 1
 
-
+# for export
 kmer_id_df = pd.DataFrame(list(kmer_id.items()),columns = ['kmer','id']) 
 kmer_id_df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/kmer_id_k' + str(kmer_size) +'.csv', index=False)
 id_count_df = pd.DataFrame(list(id_count.items()),columns = ['id','count']) 
