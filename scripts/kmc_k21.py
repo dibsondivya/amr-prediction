@@ -5,6 +5,7 @@ import pandas as pd
 from multiprocessing import Pool as ThreadPool 
 
 df = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/noNA_downsized.csv')
+# subset to only top three ribotypes
 df = df[(df['ribotype'] == 27) | (df['ribotype'] == 78) | (df['ribotype'] == 14)]
 SRA_ID_list = df['accession'].tolist()
 
@@ -14,7 +15,7 @@ id_count = {}
 id_sample = {}
 id_ribotype = {}
 
-kmer_size = 21
+kmer_size = 21 # ACTIONABLE: to be changed as required; 11, 17, 21 and 31
 n_threads = 1
 
 def mapping(accession):
