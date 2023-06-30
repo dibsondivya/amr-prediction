@@ -1,0 +1,130 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+ 
+
+```{r}
+library(readr)
+enterobase <- read_tsv("PCR_Selected.txt")
+enterobase$ribotype <- enterobase$`PCR Ribotype`
+enterobase$ribotype_class <- factor(enterobase$ribotype)
+enterobase_ribotype <- unique(enterobase$ribotype)
+```
+
+```{r}
+library(readxl)
+mgen_8_0804_s002 <- read_excel("mgen-8-0804-s002.xlsx")
+paper <- mgen_8_0804_s002[,1:5]
+paper$ribotype <- paper$Ribotype
+paper_ribotype <- unique(paper$Ribotype)
+```
+
+```{r}
+enterobase_ribotype
+sort(intersect(enterobase_ribotype,paper_ribotype))
+sort(setdiff(enterobase_ribotype, paper_ribotype))
+sort(setdiff(paper_ribotype, enterobase_ribotype))
+
+length(unique(combined$ribotype))
+```
+
+
+
+
+```{r combined_plot}
+library(dplyr)
+enterobase$type <- 'Enterobase'
+paper$type <- 'Paper'
+
+combined <- rbind(enterobase %>% dplyr::select(c(ribotype, type)),
+      paper %>% dplyr::select(c(ribotype, type)))
+
+combined$ribotype_class <- factor(combined$ribotype)
+library(ggplot2)
+ggplot(data = combined,
+       mapping = aes(ribotype_class, fill = type)) +
+  geom_histogram(stat='count') +
+  scale_x_discrete(guide = guide_axis(n.dodge=3))+
+  coord_flip()
+
+
+ggplot(data = combined,
+       mapping = aes(ribotype, fill = type)) +
+  geom_histogram() +
+  scale_x_continuous(guide = guide_axis(n.dodge=3))+
+  coord_flip()
+
+ribotype <- combined$ribotype
+table(combined$ribotype, combined$type)
+
+library(table1)
+ggsave('data_exploration.png')
+mytable <- table1(~ ribotype_class | type, data=combined)
+write.table (mytable , "my_table_1_file.csv", col.names = T, row.names=F, append= T, sep=',')
+
+CreateTableOne(vars = c('ribotype_class', 'type'), strata = "type" , data = combined)
+
+ggplot(data = combined,
+       mapping = aes(ribotype)) +
+  geom_histogram() +
+  coord_flip() +
+  facet_grid(cols = vars(type)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  scale_x_continuous("ribotype", labels = as.character(ribotype), breaks = ribotype)
+
+length(paper$Ribotype)
+
+library(tidyverse)
+combined %>% 
+  complete(ribotype, type, fill = list(count = 0)) %>% 
+  group_by(ribotype, type) %>% 
+  summarize(count = count()) %>% 
+  pivot_wider(names_from = ribotype, values_from = count)
+
+heatmap_data <- as.matrix(table(combined$ribotype, combined$type))
+heatmap(heatmap_data)
+
+combined %>% select(ribotype_class, type) %>% 
+  group_by(ribotype_class, type) %>% 
+  summarise(count = count())
+
+for_map <- combined %>% dplyr::select(ribotype_class, type)
+heatmap(for_map)
+
+
+df_heatmap <- as.data.frame(heatmap_data)
+enterobase_df <- df_heatmap %>% filter(Var2=='Enterobase')
+max(enterobase_df$Freq) # 659
+which.max(enterobase_df$Freq)
+enterobase_df[26,] # ribotype 27
+
+paper_df <- df_heatmap %>% filter(Var2=='Paper')
+max(paper_df$Freq) # 843
+which.max(paper_df$Freq)
+paper_df[26,] # ribotype 27
+
+ggp <- ggplot(df_heatmap, aes(Var2, Var1)) +    # Create default ggplot2 heatmap
+  geom_tile(aes(fill = Freq), height = 10) +
+  theme(axis.text=element_text(size=5)) 
+
+ggp  
+```
+
+
+```{r}
+library(table1)
+library(tableone)
+
+enterobase$Species
+stringspecies <- "Clostridioides difficile;96.15%"
+sub(" .*;", "", stringspecies)                 # Extract characters before pattern
+# "hello"
+
+enterobase$conc <- sub("^.*?;", "", enterobase$Species)
+```
+```{r}
+enterobase[enterobase$Barcode == "CLO_FA6957AA",]
+```
+
+

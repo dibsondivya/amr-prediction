@@ -1,0 +1,407 @@
+---
+title: "3_kmers"
+author: "Divya Shridar"
+date: "6/20/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r}
+id_count <- read_csv("id_count.csv")
+kmer_id <- read_csv("kmer_id.csv")
+id_ribotype <- read_csv("id_ribotype.csv")
+multiple_id_ribotype <- read_csv("multiple_id_ribotype.csv")
+
+OHE_withrc <- read_csv("OHE_withrc.csv")
+result_df <- read_csv("result_df.csv")
+```
+```{r}
+sum(id_count$count) # 57042
+sum(df$kmer_count) # 57042
+```
+
+```{r}
+result_df <- result_df[, 2:ncol(result_df)]
+rownames(result_df) <- 1:nrow(result_df)-1
+```
+
+```{r}
+OHE_withrc <- OHE_withrc[, 2:ncol(OHE_withrc)]
+rownames(OHE_withrc) <- 1:nrow(OHE_withrc)-1
+```
+
+```{r}
+df <- data.frame(ribotype = result_df$ribotype,
+                 unique_kmer_count = rowSums(OHE_withrc))
+
+df <- df %>% group_by(ribotype) %>% summarise(kmer_count = sum(unique_kmer_count))
+df
+```
+```{r}
+ggplot(data = df, 
+       mapping = aes(x =  reorder(factor(ribotype), desc(kmer_count)),
+                     y =  kmer_count))  +
+  geom_bar(stat="identity", fill = 'steelblue') +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  geom_text(stat='identity', aes(label=kmer_count), vjust=-0.3, size=3.5) +
+  labs(title="Kmer Count per Ribotype",
+       subtitle='Kmer counts in descending order',
+       x="Ribotype", 
+       y = "Kmer Count")
+```
+
+
+
+```{r}
+kmer_count_df <- merge(kmer_id, id_count, by='id') %>% arrange(desc(count))
+kmer_count_df
+```
+
+
+
+```{r}
+with_ribotype <- merge(kmer_count_df, multiple_id_ribotype,by='id')
+with_ribotype
+```
+
+```{r}
+sum(with_ribotype$count) # 57042
+```
+
+
+```{r}
+ribotype_kmer <- matrix(data = 0,
+       nrow = nrow(kmer_id),
+       ncol = nrow(df),
+       dimnames = list(kmer_id$kmer, df$ribotype))
+ribotype_kmer
+```
+```{r}
+for (i in 1:nrow(with_ribotype)){
+  kmer <- with_ribotype$kmer[i]
+  output <- gsub("\\[|\\]", "", with_ribotype$ribotype[i])
+  output = str_replace_all(output, " ", "")
+  newlist = unlist(strsplit(output,","))
+
+  
+  if (length(newlist) != with_ribotype$count[i]){
+    print(length(newlist))
+    print(with_ribotype$count[i])
+  }
+}
+# prints nothing
+```
+
+```{r}
+with_ribotype$kmer[nrow(with_ribotype)]
+```
+
+
+```{r}
+for (i in 1:nrow(with_ribotype)){
+  kmer <- with_ribotype$kmer[i]
+  output <- gsub("\\[|\\]", "", with_ribotype$ribotype[i])
+  output = str_replace_all(output, " ", "")
+  newlist = unlist(strsplit(output,","))
+
+  for (id in newlist){
+    id <- str_replace_all(id, "'", "")
+    ribotype_kmer[kmer, id] <- ribotype_kmer[kmer, id] + 1
+  }
+}
+```
+
+```{r}
+with_ribotype[unname(rowSums(ribotype_kmer)) != with_ribotype$count,]
+```
+
+```{r}
+length(names(rowSums(ribotype_kmer)[unname(rowSums(ribotype_kmer)) != with_ribotype$count]))
+length(unique(names(rowSums(ribotype_kmer)[unname(rowSums(ribotype_kmer)) != with_ribotype$count])))
+```
+
+```{r}
+length(rownames(ribotype_kmer))
+length(unique(rownames(ribotype_kmer)))
+```
+
+```{r}
+kmer_count_df
+```
+
+```{r}
+sum(ribotype_kmer) # 57042
+
+sum(kmer_count_df$count) # 57042
+
+```
+
+```{r}
+ribotype_kmer
+```
+```{r}
+length(rownames(ribotype_kmer)[ribotype_kmer[,'012'] == 7])
+```
+
+```{r}
+ribotype_max_count <- data.frame(max_count = apply(ribotype_kmer,2,max),
+                                 ribotype = names(apply(ribotype_kmer,2,max)))
+
+ggplot(data = ribotype_max_count, 
+       mapping = aes(x =  reorder(factor(ribotype), desc(max_count)),
+                     y =  max_count))  +
+  geom_bar(stat="identity", fill = 'steelblue') +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  geom_text(stat='identity', aes(label=max_count), vjust=-0.3, size=3.5) +
+  labs(title="Maximum Count of Same k-mers per Ribotype",
+       subtitle='Maximum k-mer counts in descending order',
+       x="Ribotype", 
+       y = "Max k-mer Count")
+```
+
+```{r}
+kmer_max_count <- data.frame(max_count = apply(ribotype_kmer,1,max),
+                                 kmer = names(apply(ribotype_kmer,1,max)))
+
+ggplot(data = kmer_max_count %>% filter(max_count == 7), 
+       mapping = aes(x =  reorder(factor(kmer), desc(max_count)),
+                     y =  max_count))  +
+  geom_bar(stat="identity", fill = 'steelblue') +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  geom_text(stat='identity', aes(label=max_count), vjust=-0.3, size=3.5) +
+  labs(title="Maximum Count of Same Ribotype per Kmer",
+       subtitle='Maximum ribotype counts in descending order',
+       x="Kmer", 
+       y = "Max Ribotype Count")
+```
+
+```{r}
+heatmap(ribotype_kmer, xlab="ribotype", ylab="kmer")
+
+heatmap(t(ribotype_kmer), ylab="ribotype", xlab="kmer")
+```
+
+
+
+```{r}
+ggplot(data = kmer_count_df, 
+       mapping = aes(x =  factor(count)))  +
+  geom_bar(stat="count", fill = 'steelblue') +
+  theme_bw() +  
+  geom_text(stat='count', aes(label=..count..), vjust=-0.3, size=3.5) +
+    labs(title="Distribution of k-mer Counts",
+       x="Frequency of k-mers", 
+       y = "Number of k-mers with same Frequency")
+```
+
+## K-mer = 21
+
+```{r}
+id_count <- read_csv("id_count21.csv")
+kmer_id <- read_csv("kmer_id21.csv")
+id_ribotype <- read_csv("id_ribotype21.csv")
+multiple_id_ribotype <- read_csv("multiple_id_ribotype21.csv")
+
+OHE_withrc <- read_csv("OHE_withrc21.csv")
+result_df <- read_csv("result_df21.csv")
+```
+
+```{r}
+sum(id_count$count) # 57188
+
+```
+
+```{r}
+result_df <- result_df[, 2:ncol(result_df)]
+rownames(result_df) <- 1:nrow(result_df)-1
+```
+
+```{r}
+OHE_withrc <- OHE_withrc[, 2:ncol(OHE_withrc)]
+rownames(OHE_withrc) <- 1:nrow(OHE_withrc)-1
+```
+
+```{r}
+df <- data.frame(ribotype = result_df$ribotype,
+                 unique_kmer_count = rowSums(OHE_withrc))
+
+df <- df %>% group_by(ribotype) %>% summarise(kmer_count = sum(unique_kmer_count))
+df
+```
+
+```{r}
+ggplot(data = df, 
+       mapping = aes(x =  reorder(factor(ribotype), desc(kmer_count)),
+                     y =  kmer_count))  +
+  geom_bar(stat="identity", fill = 'steelblue') +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  geom_text(stat='identity', aes(label=kmer_count), vjust=-0.3, size=3.5) +
+  labs(title="k-mer Count per Ribotype",
+       subtitle='k-mer counts in descending order',
+       x="Ribotype", 
+       y = "k-mer Count")
+```
+
+
+
+```{r}
+kmer_count_df <- merge(kmer_id, id_count, by='id') %>% arrange(desc(count))
+kmer_count_df
+```
+
+
+
+```{r}
+with_ribotype <- merge(kmer_count_df, multiple_id_ribotype,by='id')
+with_ribotype
+```
+
+```{r}
+sum(with_ribotype$count) # 57188
+```
+
+
+```{r}
+ribotype_kmer <- matrix(data = 0,
+       nrow = nrow(kmer_id),
+       ncol = nrow(df),
+       dimnames = list(kmer_id$kmer, df$ribotype))
+ribotype_kmer
+```
+
+```{r}
+for (i in 1:nrow(with_ribotype)){
+  kmer <- with_ribotype$kmer[i]
+  output <- gsub("\\[|\\]", "", with_ribotype$ribotype[i])
+  output = str_replace_all(output, " ", "")
+  newlist = unlist(strsplit(output,","))
+
+  
+  if (length(newlist) != with_ribotype$count[i]){
+    print(length(newlist))
+    print(with_ribotype$count[i])
+  }
+}
+# prints nothing
+```
+
+```{r}
+with_ribotype$kmer[nrow(with_ribotype)]
+```
+
+
+```{r}
+for (i in 1:nrow(with_ribotype)){
+  kmer <- with_ribotype$kmer[i]
+  output <- gsub("\\[|\\]", "", with_ribotype$ribotype[i])
+  output = str_replace_all(output, " ", "")
+  newlist = unlist(strsplit(output,","))
+
+  for (id in newlist){
+    id <- str_replace_all(id, "'", "")
+    ribotype_kmer[kmer, id] <- ribotype_kmer[kmer, id] + 1
+  }
+}
+```
+
+```{r}
+with_ribotype[unname(rowSums(ribotype_kmer)) != with_ribotype$count,]
+```
+
+```{r}
+length(names(rowSums(ribotype_kmer)[unname(rowSums(ribotype_kmer)) != with_ribotype$count]))
+length(unique(names(rowSums(ribotype_kmer)[unname(rowSums(ribotype_kmer)) != with_ribotype$count])))
+```
+
+```{r}
+length(rownames(ribotype_kmer))
+length(unique(rownames(ribotype_kmer)))
+```
+
+```{r}
+kmer_count_df
+```
+
+```{r}
+sum(ribotype_kmer) # 57188
+
+sum(kmer_count_df$count) # 57188
+
+```
+
+```{r}
+ribotype_kmer
+```
+```{r}
+length(rownames(ribotype_kmer)[ribotype_kmer[,'012'] == 7])
+```
+
+```{r}
+ribotype_max_count <- data.frame(max_count = apply(ribotype_kmer,2,max),
+                                 ribotype = names(apply(ribotype_kmer,2,max)))
+
+ggplot(data = ribotype_max_count, 
+       mapping = aes(x =  reorder(factor(ribotype), desc(max_count)),
+                     y =  max_count))  +
+  geom_bar(stat="identity", fill = 'steelblue') +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  geom_text(stat='identity', aes(label=max_count), vjust=-0.3, size=3.5) +
+  labs(title="Maximum Count of Same k-mers per Ribotype",
+       subtitle='Maximum k-mer counts in descending order',
+       x="Ribotype", 
+       y = "Max k-mer Count")
+```
+
+```{r}
+max(kmer_max_count$max_count)
+```
+
+```{r}
+kmer_max_count <- data.frame(max_count = apply(ribotype_kmer,1,max),
+                                 kmer = names(apply(ribotype_kmer,1,max)))
+
+ggplot(data = kmer_max_count %>% filter(max_count == 7), 
+       mapping = aes(x =  reorder(factor(kmer), desc(max_count)),
+                     y =  max_count))  +
+  geom_bar(stat="identity", fill = 'steelblue') +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  geom_text(stat='identity', aes(label=max_count), vjust=-0.3, size=3.5) +
+  labs(title="Maximum Count of Same Ribotype per k-mer",
+       subtitle='Maximum ribotype counts in descending order',
+       x="k-mer", 
+       y = "Max Ribotype Count")
+```
+
+```{r}
+heatmap(ribotype_kmer, xlab="ribotype", ylab="kmer")
+
+heatmap(t(ribotype_kmer), ylab="ribotype", xlab="kmer")
+```
+
+
+
+```{r}
+ggplot(data = kmer_count_df, 
+       mapping = aes(x =  factor(count)))  +
+  geom_bar(stat="count", fill = 'steelblue') +
+  theme_bw() +  
+  geom_text(stat='count', aes(label=..count..), vjust=-0.3, size=3.5) +
+    labs(title="Distribution of k-mer Counts",
+       x="Frequency of k-mers", 
+       y = "Number of k-mers with same Frequency")
+```
