@@ -1,4 +1,4 @@
-# combine all txt one huge dictionary
+# combine all txt into one huge dictionary
 import json
 import os
 import math
