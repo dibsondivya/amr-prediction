@@ -7,10 +7,11 @@ import os
 import csv
 from multiprocessing import Pool as ThreadPool  
 import collections
+from collections import Counter
 from tqdm import tqdm
 
 # initialize
-kmer_size = 17 # ACTIONABLE: to be declared
+kmer_size = 21 # ACTIONABLE: to be declared
 os.chdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_txt/')
 n_threads = 4
 
@@ -34,13 +35,14 @@ for line in file_content:
     #print(ribotype_list)
     #print(ribotype_list.count(','))
     if ribotype_list.count(',') == 0:
-        library_id_2_ribotype[id_] = ribotype_list.replace("{'", '').replace("'}", '')
+        library_id_2_ribotype[id_] = ribotype_list.replace("['", '').replace("']", '') # for k=21 only
+        #library_id_2_ribotype[id_] = ribotype_list.replace("{'", '').replace("'}", '') # for k=17 and k=31
         kmer_list = list(library_kmer_2_id.keys())
         id_list = list(library_kmer_2_id.values())
         kmer_position = id_list.index(id_)
         kmer_ = kmer_list[kmer_position]
-        #library_kmer_2_ribotype[kmer_] = ribotype_list.replace("['", '').replace("']", '') # for k=21 only
-        library_kmer_2_ribotype[kmer_] = ribotype_list.replace("{'", '').replace("'}", '') # for k=17 and k=31
+        library_kmer_2_ribotype[kmer_] = ribotype_list.replace("['", '').replace("']", '') # for k=21 only
+        #library_kmer_2_ribotype[kmer_] = ribotype_list.replace("{'", '').replace("'}", '') # for k=17 and k=31
 
 shrunk_library_kmer_2_ribotype = dict((k, v) for k, v in library_kmer_2_ribotype.items() if (v == '078') | (v == '027') | (v == '001') | (v == '014'))
 shrunk_library_id_2_ribotype = dict((k, v) for k, v in library_id_2_ribotype.items() if (v == '078') | (v == '027') | (v == '001') | (v == '014'))
@@ -72,8 +74,6 @@ import json
 import os
 import math
 from tqdm import tqdm
-
-kmer_size = 17
 
 # Define output filename
 OutputFilename = 'new3_kmer'+str(kmer_size)+'_dict.txt'
@@ -113,6 +113,6 @@ for fn in tqdm(os.listdir(InputPath)):
 out = open(out_file, 'w+')
 for id_, count_ in id_count.items():
     out.write(str(id_) + '	' + str(count_) + '\n')
-out.close()          
+out.close()       
 
 ################################################## get max/sum/mean/median counts of unique k-mers from prev step ##############################################################
