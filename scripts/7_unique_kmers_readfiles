@@ -171,11 +171,11 @@ out_file = os.path.join(OutputPath,OutputFilename)
 
 # prep and export x data 
 readfile_by_ribotype_sumcount_df = pd.DataFrame.from_dict(readfile_by_ribotype_sumcount,orient='index')
-readfile_by_ribotype_sumcount_df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_sumcount_df_k'+str(kmer_size)), index = True, header = True)
+readfile_by_ribotype_sumcount_df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/readfile_by_ribotype_sumcount_df_k'+str(kmer_size), index = True, header = True)
 readfile_by_ribotype_meancount_df = pd.DataFrame.from_dict(readfile_by_ribotype_meancount,orient='index')
-readfile_by_ribotype_meancount_df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_meancount_df_k'+str(kmer_size)), index = True, header = True)
+readfile_by_ribotype_meancount_df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/readfile_by_ribotype_meancount_df_k'+str(kmer_size), index = True, header = True)
 readfile_by_ribotype_mediancount_df = pd.DataFrame.from_dict(readfile_by_ribotype_mediancount,orient='index')
-readfile_by_ribotype_mediancount_df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_mediancount_df_k'+str(kmer_size)), index = True, header = True)
+readfile_by_ribotype_mediancount_df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/readfile_by_ribotype_mediancount_df_k'+str(kmer_size), index = True, header = True)
 
 # prep and export y data
 df = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/noNA_downsized.csv')
@@ -184,7 +184,7 @@ df = df.drop(columns='source_code')
 df = df.set_index('accession')
 df.index.name = None
 df = df.loc[readfile_by_ribotype_sumcount_df.index]
-df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_trueribotype_df_k'+str(kmer_size)), index = True, header = True)
+df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/readfile_by_ribotype_trueribotype_df_k'+str(kmer_size), index = True, header = True)
 
 ################################################## prediction model ##############################################################
 ####### random forest
@@ -206,31 +206,31 @@ X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 
 # Fitting Random Forest Classification to the Training set
-classifier = RandomForestClassifier(n_estimators = 10, criterion = 'entropy', random_state = 42)
-classifier.fit(X_train, y_train)
+#classifier = RandomForestClassifier(n_estimators = 10, criterion = 'entropy', random_state = 42)
+#classifier.fit(X_train, y_train)
 
 # Predicting the Test set results
-y_pred = classifier.predict(X_test)
-cm = confusion_matrix(y_test, y_pred, labels=[1, 14, 27, 78])
-print(ConfusionMatrixDisplay(cm, display_labels = [1, 14, 27, 78]).plot())
+#y_pred = classifier.predict(X_test)
+#cm = confusion_matrix(y_test, y_pred, labels=[1, 14, 27, 78])
+#print(ConfusionMatrixDisplay(cm, display_labels = [1, 14, 27, 78]).plot())
 
 # Feature Importance
 ##from operator import itemgetter
 ##classifier_importance_list = list(zip(readfile_by_ribotype_sumcount_df.columns, classifier.feature_importances_))
 ##print(max(classifier_importance_list, key=itemgetter(1)))
 
-features = readfile_by_ribotype_sumcount_df.columns
-importances = classifier.feature_importances_
-indices = np.argsort(importances)
+#features = readfile_by_ribotype_sumcount_df.columns
+#importances = classifier.feature_importances_
+#indices = np.argsort(importances)
 
-plt.title('Feature Importances')
-plt.barh(range(len(indices)), importances[indices], color='b', align='center')
-plt.yticks(range(len(indices)), [features[i] for i in indices])
-plt.xlabel('Relative Importance')
-plt.show()
+#plt.title('Feature Importances')
+#plt.barh(range(len(indices)), importances[indices], color='b', align='center')
+#plt.yticks(range(len(indices)), [features[i] for i in indices])
+#plt.xlabel('Relative Importance')
+#plt.show()
 
-feat_importances = pd.Series(classifier.feature_importances_, index=readfile_by_ribotype_sumcount_df.columns)
-feat_importances.nlargest(4).plot(kind='barh')
+#feat_importances = pd.Series(classifier.feature_importances_, index=readfile_by_ribotype_sumcount_df.columns)
+#feat_importances.nlargest(4).plot(kind='barh')
 
 # Tuning
 from pprint import pprint
