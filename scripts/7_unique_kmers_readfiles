@@ -166,9 +166,6 @@ for k, v in readfile_by_ribotype.items(): # for every readfile
 
 ################################################## export data in x and y, ready for prediction ##############################################################
 
-OutputPath = '/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/'
-out_file = os.path.join(OutputPath,OutputFilename)
-
 # prep and export x data 
 readfile_by_ribotype_sumcount_df = pd.DataFrame.from_dict(readfile_by_ribotype_sumcount,orient='index')
 readfile_by_ribotype_sumcount_df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/readfile_by_ribotype_sumcount_df_k'+str(kmer_size), index = True, header = True)
