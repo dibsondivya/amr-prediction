@@ -11,7 +11,7 @@ from collections import Counter
 from tqdm import tqdm
 
 # initialize
-kmer_size = 21 # ACTIONABLE: to be declared
+kmer_size = 31 # ACTIONABLE: to be declared
 os.chdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_txt/')
 n_threads = 4
 
@@ -35,14 +35,14 @@ for line in file_content:
     #print(ribotype_list)
     #print(ribotype_list.count(','))
     if ribotype_list.count(',') == 0:
-        library_id_2_ribotype[id_] = ribotype_list.replace("['", '').replace("']", '') # for k=21 only
-        #library_id_2_ribotype[id_] = ribotype_list.replace("{'", '').replace("'}", '') # for k=17 and k=31
+        #library_id_2_ribotype[id_] = ribotype_list.replace("['", '').replace("']", '') # for k=21 only
+        library_id_2_ribotype[id_] = ribotype_list.replace("{'", '').replace("'}", '') # for k=17 and k=31
         kmer_list = list(library_kmer_2_id.keys())
         id_list = list(library_kmer_2_id.values())
         kmer_position = id_list.index(id_)
         kmer_ = kmer_list[kmer_position]
-        library_kmer_2_ribotype[kmer_] = ribotype_list.replace("['", '').replace("']", '') # for k=21 only
-        #library_kmer_2_ribotype[kmer_] = ribotype_list.replace("{'", '').replace("'}", '') # for k=17 and k=31
+        #library_kmer_2_ribotype[kmer_] = ribotype_list.replace("['", '').replace("']", '') # for k=21 only
+        library_kmer_2_ribotype[kmer_] = ribotype_list.replace("{'", '').replace("'}", '') # for k=17 and k=31
 
 shrunk_library_kmer_2_ribotype = dict((k, v) for k, v in library_kmer_2_ribotype.items() if (v == '078') | (v == '027') | (v == '001') | (v == '014'))
 shrunk_library_id_2_ribotype = dict((k, v) for k, v in library_id_2_ribotype.items() if (v == '078') | (v == '027') | (v == '001') | (v == '014'))
@@ -85,9 +85,7 @@ OutputPath = '/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05
 # Define output file
 out_file = os.path.join(OutputPath,OutputFilename)
 
-id_count = collections.defaultdict(int)
-kmer_count = collections.defaultdict(int)
-
+readfile_dict = dict()
 
 def append_record(fn, record):
     with open(fn, 'a') as f:
@@ -100,19 +98,175 @@ for fn in tqdm(os.listdir(InputPath)):
     if os.path.isfile(in_file) and fn.endswith('.txt'):
         with open(in_file, 'r') as file_in:
             content = file_in.readlines()
+            id_count = collections.defaultdict(list)
             for line in content:
                 insert = line.strip().split('\t')
                 id_ = insert[0]
-                if id_ in shrunk_library_id_2_ribotype: # add to dictionary
+                if id_ in library_id_2_ribotype: # if kmer exists in library; replacing it with shrunk_library_id_2_ribotype does not give sane result!
                     if id_ in id_count:
-                        id_count[id_] += int(insert[1])
+                        id_count[id_].append(insert[1])
                     else:
-                        id_count[id_] = int(insert[1])
+                        id_count[id_].append(insert[1])
+            if len(id_count) != 0:
+                readfile_dict[fn.replace('.txt', '')] = id_count
 
 # save to txt file
 out = open(out_file, 'w+')
 for id_, count_ in id_count.items():
     out.write(str(id_) + '	' + str(count_) + '\n')
-out.close()       
+out.close()     
 
-################################################## get max/sum/mean/median counts of unique k-mers from prev step ##############################################################
+################################################## get per ribotype counts of unique k-mers per readfile ##############################################################
+readfile_by_ribotype = dict()
+
+
+for k, v in readfile_dict.items(): # for every readfile
+    ribotype_count = collections.defaultdict(list)
+    for id_, count_ in v.items(): # note: count_ seems to always have only one entry
+        ribotype = library_id_2_ribotype[id_]
+        if ribotype in ribotype_count:
+            ribotype_count[ribotype].extend(count_)
+        else:
+            ribotype_count[ribotype].extend(count_)
+    missing_ribotypes = list(set(library_id_2_ribotype.values()) - set(ribotype_count.keys()))
+    for missing_ribotype in missing_ribotypes:
+        ribotype_count[missing_ribotype] = ['0']
+    readfile_by_ribotype[k] = ribotype_count
+
+
+################################################## get sum/mean/median counts of unique k-mers from prev step ##############################################################
+import statistics
+import pandas as pd
+
+readfile_by_ribotype_sumcount = dict()
+readfile_by_ribotype_meancount = dict()
+readfile_by_ribotype_mediancount = dict()
+
+
+for k, v in readfile_by_ribotype.items(): # for every readfile
+    # initialie dicts  
+    ribotype_sumcount = collections.defaultdict(int)
+    ribotype_meancount = collections.defaultdict(int)
+    ribotype_mediancount = collections.defaultdict(int)
+    
+    for ribotype_, count_ in v.items():
+        count_ = [ int(x) for x in count_ ] # convert to int
+        
+        sum_count = sum(count_)
+        mean_count = statistics.mean(count_)
+        median_count = statistics.median(count_)
+              
+        ribotype_sumcount[ribotype_] = sum_count
+        ribotype_meancount[ribotype_] = mean_count
+        ribotype_mediancount[ribotype_] = median_count
+
+    readfile_by_ribotype_sumcount[k] = ribotype_sumcount
+    readfile_by_ribotype_meancount[k] = ribotype_meancount    
+    readfile_by_ribotype_mediancount[k] = ribotype_mediancount  
+
+################################################## export data in x and y, ready for prediction ##############################################################
+
+OutputPath = '/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/'
+out_file = os.path.join(OutputPath,OutputFilename)
+
+# prep and export x data 
+readfile_by_ribotype_sumcount_df = pd.DataFrame.from_dict(readfile_by_ribotype_sumcount,orient='index')
+readfile_by_ribotype_sumcount_df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_sumcount_df'), index = True, header = True)
+readfile_by_ribotype_meancount_df = pd.DataFrame.from_dict(readfile_by_ribotype_meancount,orient='index')
+readfile_by_ribotype_meancount_df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_meancount_df'), index = True, header = True)
+readfile_by_ribotype_mediancount_df = pd.DataFrame.from_dict(readfile_by_ribotype_mediancount,orient='index')
+readfile_by_ribotype_mediancount_df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_mediancount_df'), index = True, header = True)
+
+# prep and export y data
+df = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/noNA_downsized.csv')
+df = df.loc[df['accession'].isin(readfile_by_ribotype_sumcount.keys())] 
+df = df.drop(columns='source_code')
+df = df.set_index('accession')
+df.index.name = None
+df = df.loc[readfile_by_ribotype_sumcount_df.index]
+df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_trueribotype_df'), index = True, header = True)
+
+################################################## prediction model ##############################################################
+####### random forest
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report
+
+X = readfile_by_ribotype_sumcount_df.values
+y = np.ravel(df.values)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 21)
+
+# Feature Scaling
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Fitting Random Forest Classification to the Training set
+classifier = RandomForestClassifier(n_estimators = 10, criterion = 'entropy', random_state = 42)
+classifier.fit(X_train, y_train)
+
+# Predicting the Test set results
+y_pred = classifier.predict(X_test)
+cm = confusion_matrix(y_test, y_pred, labels=[1, 14, 27, 78])
+print(ConfusionMatrixDisplay(cm, display_labels = [1, 14, 27, 78]).plot())
+
+# Feature Importance
+##from operator import itemgetter
+##classifier_importance_list = list(zip(readfile_by_ribotype_sumcount_df.columns, classifier.feature_importances_))
+##print(max(classifier_importance_list, key=itemgetter(1)))
+
+features = readfile_by_ribotype_sumcount_df.columns
+importances = classifier.feature_importances_
+indices = np.argsort(importances)
+
+plt.title('Feature Importances')
+plt.barh(range(len(indices)), importances[indices], color='b', align='center')
+plt.yticks(range(len(indices)), [features[i] for i in indices])
+plt.xlabel('Relative Importance')
+plt.show()
+
+feat_importances = pd.Series(classifier.feature_importances_, index=readfile_by_ribotype_sumcount_df.columns)
+feat_importances.nlargest(4).plot(kind='barh')
+
+# Tuning
+from pprint import pprint
+from sklearn.model_selection import RandomizedSearchCV
+# Number of trees in random forest
+n_estimators = [int(x) for x in np.linspace(start = 200, stop = 2000, num = 10)]
+# Number of features to consider at every split
+max_features = ['auto', 'sqrt']
+# Maximum number of levels in tree
+max_depth = [int(x) for x in np.linspace(10, 110, num = 11)]
+max_depth.append(None)
+# Minimum number of samples required to split a node
+min_samples_split = [2, 5, 10]
+# Minimum number of samples required at each leaf node
+min_samples_leaf = [1, 2, 4]
+# Method of selecting samples for training each tree
+bootstrap = [True, False]
+# Create the random grid
+random_grid = {'n_estimators': n_estimators,
+               'max_features': max_features,
+               'max_depth': max_depth,
+               'min_samples_split': min_samples_split,
+               'min_samples_leaf': min_samples_leaf,
+               'bootstrap': bootstrap}
+
+# Use the random grid to search for best hyperparameters
+# First create the base model to tune
+rf = RandomForestClassifier()
+# Random search of parameters, using 3 fold cross validation, 
+# search across 100 different combinations, and use all available cores
+rf_random = RandomizedSearchCV(estimator = rf, param_distributions = random_grid, n_iter = 100, cv = 3, verbose=2, random_state=42, n_jobs = -1)
+# Fit the random search model
+rf_random.fit(X_train, y_train)
+# predict
+y_tuned_pred = rf_random.predict(X_test)
+# classification report
+print(classification_report(y_test, y_tuned_pred, labels=[1, 14, 27, 78]))
+cm_tuned = confusion_matrix(y_test, y_tuned_pred, labels=[1, 14, 27, 78])
+print(ConfusionMatrixDisplay(cm_tuned, display_labels = [1, 14, 27, 78]).plot())
