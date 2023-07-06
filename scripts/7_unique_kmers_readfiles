@@ -171,11 +171,11 @@ out_file = os.path.join(OutputPath,OutputFilename)
 
 # prep and export x data 
 readfile_by_ribotype_sumcount_df = pd.DataFrame.from_dict(readfile_by_ribotype_sumcount,orient='index')
-readfile_by_ribotype_sumcount_df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_sumcount_df'), index = True, header = True)
+readfile_by_ribotype_sumcount_df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_sumcount_df_k'+str(kmer_size)), index = True, header = True)
 readfile_by_ribotype_meancount_df = pd.DataFrame.from_dict(readfile_by_ribotype_meancount,orient='index')
-readfile_by_ribotype_meancount_df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_meancount_df'), index = True, header = True)
+readfile_by_ribotype_meancount_df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_meancount_df_k'+str(kmer_size)), index = True, header = True)
 readfile_by_ribotype_mediancount_df = pd.DataFrame.from_dict(readfile_by_ribotype_mediancount,orient='index')
-readfile_by_ribotype_mediancount_df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_mediancount_df'), index = True, header = True)
+readfile_by_ribotype_mediancount_df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_mediancount_df_k'+str(kmer_size)), index = True, header = True)
 
 # prep and export y data
 df = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/noNA_downsized.csv')
@@ -184,7 +184,7 @@ df = df.drop(columns='source_code')
 df = df.set_index('accession')
 df.index.name = None
 df = df.loc[readfile_by_ribotype_sumcount_df.index]
-df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_trueribotype_df'), index = True, header = True)
+df.to_csv(os.path.join(OutputPath,'readfile_by_ribotype_trueribotype_df_k'+str(kmer_size)), index = True, header = True)
 
 ################################################## prediction model ##############################################################
 ####### random forest
