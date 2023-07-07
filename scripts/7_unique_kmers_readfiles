@@ -1,1 +1,327 @@
+############################################################## get per kmer count across all kmc files ##############################################################
+import sys
+import subprocess
+####import pandas as pd
+import os
+import csv
+from multiprocessing import Pool as ThreadPool  
+import collections
+from tqdm import tqdm
 
+# initialize
+kmer_size = 21 # ACTIONABLE: to be declared
+os.chdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_txt/')
+n_threads = 4
+
+# load library kmers
+global kmer_2_id
+kmer_2_id = dict()
+file_content = csv.reader(open('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/kmer_id'+str(kmer_size)+'.csv'), delimiter=',')
+for line in file_content:
+    kmer = line[0]
+    id_ = line[1]
+    kmer_2_id[kmer] = id_
+    
+
+def create_list_csv(file):
+    id_count = collections.defaultdict(list)
+
+    accession = file.replace('_1.txt', '')
+    
+    output = open(file, "r")
+    Lines = output.readlines()
+    for line in Lines:
+        insert = line.strip().split('\t')
+        if insert and len(insert) == 2:
+            kmer = insert[0]
+            if kmer in kmer_2_id:
+                id_ = kmer_2_id[kmer]
+                id_count[id_].append(int(insert[1]))
+    
+    try:
+        output = open(file.replace('_1.txt','_2.txt'), "r")
+        Lines = output.readlines()
+        for line in Lines:
+            insert = line.strip().split('\t')
+            if insert and len(insert) == 2:
+                kmer = insert[0]
+                if kmer in kmer_2_id:
+                    id_ = kmer_2_id[kmer]
+                    id_count[id_].append(int(insert[1]))
+    except:
+        print('Error with file ' + file.replace('_1.txt','_2.txt'))
+
+    out = open('/rds/general/user/dds122/ephemeral/kmer_list_'+str(kmer_size)+'_df/' + accession + '.txt', 'w+')
+    for id_, count_ in id_count.items():
+        out.write(str(id_) + '	' + str(count_) + '\n')
+    out.close()
+
+    
+    pbar.update(1)
+    
+   
+file_list = []
+file31_list = []
+# restrict to top3 ribotype only files
+for file in os.listdir('/rds/general/user/dds122/ephemeral/kmer_31_txt/'):
+    if file.endswith('_1.txt'):
+        file31_list.append(file)
+for file in os.listdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_txt/'):
+    if file.endswith('_1.txt') and file in file31_list:
+        file_list.append(file)
+
+pbar = tqdm(total=len(file_list))
+
+
+## process samples        
+pool = ThreadPool(n_threads) 
+tmp_res = pool.map_async(create_list_csv, file_list)
+output = tmp_res.get()
+pool.close() 
+pool.join() 
+
+################################################## get unique kmers in library ##############################################################
+#### get kmers that are unique to ribotype in library
+import sys
+import subprocess
+####import pandas as pd
+import os
+import csv
+from multiprocessing import Pool as ThreadPool  
+import collections
+from collections import Counter
+from tqdm import tqdm
+
+# initialize
+kmer_size = 31 # ACTIONABLE: to be declared
+os.chdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_txt/')
+n_threads = 4
+
+# load library kmers
+global library_kmer_2_id
+library_kmer_2_id = dict()
+file_content = csv.reader(open('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/kmer_id'+str(kmer_size)+'.csv'), delimiter=',')
+for line in file_content:
+    kmer = line[0]
+    id_ = line[1]
+    library_kmer_2_id[kmer] = id_
+
+global library_id_2_ribotype
+library_id_2_ribotype = dict()
+global library_kmer_2_ribotype
+library_kmer_2_ribotype = dict()
+file_content = csv.reader(open('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/id_ribotype'+str(kmer_size)+'.csv'), delimiter=',')
+for line in file_content:
+    id_ = line[0]
+    ribotype_list = line[1]
+    #print(ribotype_list)
+    #print(ribotype_list.count(','))
+    if ribotype_list.count(',') == 0:
+        #library_id_2_ribotype[id_] = ribotype_list.replace("['", '').replace("']", '') # for k=21 only
+        library_id_2_ribotype[id_] = ribotype_list.replace("{'", '').replace("'}", '') # for k=17 and k=31
+        kmer_list = list(library_kmer_2_id.keys())
+        id_list = list(library_kmer_2_id.values())
+        kmer_position = id_list.index(id_)
+        kmer_ = kmer_list[kmer_position]
+        #library_kmer_2_ribotype[kmer_] = ribotype_list.replace("['", '').replace("']", '') # for k=21 only
+        library_kmer_2_ribotype[kmer_] = ribotype_list.replace("{'", '').replace("'}", '') # for k=17 and k=31
+
+shrunk_library_kmer_2_ribotype = dict((k, v) for k, v in library_kmer_2_ribotype.items() if (v == '078') | (v == '027') | (v == '001') | (v == '014'))
+shrunk_library_id_2_ribotype = dict((k, v) for k, v in library_id_2_ribotype.items() if (v == '078') | (v == '027') | (v == '001') | (v == '014'))
+
+## get distinct library kmers per ribotype
+print(Counter(shrunk_library_kmer_2_ribotype.values()))
+print(Counter(shrunk_library_id_2_ribotype.values()))
+
+## save files
+OutputFilename = 'shrunk_library_kmer_2_ribotype_k'+str(kmer_size)+'_dict.txt'
+OutputPath = '/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/'
+out_file = os.path.join(OutputPath,OutputFilename)
+out = open(out_file, 'w+')
+for kmer_, ribotype_ in shrunk_library_kmer_2_ribotype.items():
+    out.write(str(kmer_) + '	' + str(ribotype_) + '\n')
+out.close()       
+
+OutputFilename = 'shrunk_library_id_2_ribotype_k'+str(kmer_size)+'_dict.txt'
+OutputPath = '/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/'
+out_file = os.path.join(OutputPath,OutputFilename)
+out = open(out_file, 'w+')
+for id_, ribotype_ in shrunk_library_id_2_ribotype.items():
+    out.write(str(id_) + '	' + str(ribotype_) + '\n')
+out.close() 
+
+################################################## get kmers counts list in read files ##############################################################
+# combine all txt one huge dictionary
+import json
+import os
+import math
+from tqdm import tqdm
+
+# Define output filename
+OutputFilename = 'new3_kmer'+str(kmer_size)+'_dict.txt'
+
+# Define path to input and output files
+InputPath  = '/rds/general/user/dds122/ephemeral/kmer_list_'+str(kmer_size)+'_df/'
+OutputPath = '/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/'
+
+# Define output file
+out_file = os.path.join(OutputPath,OutputFilename)
+
+readfile_dict = dict()
+
+def append_record(fn, record):
+    with open(fn, 'a') as f:
+        json.dump(record, f)
+
+# Loop through each file in input directory
+for fn in tqdm(os.listdir(InputPath)):
+    # Define full filename
+    in_file = os.path.join(InputPath,fn)
+    if os.path.isfile(in_file) and fn.endswith('.txt'):
+        with open(in_file, 'r') as file_in:
+            content = file_in.readlines()
+            id_count = collections.defaultdict(list)
+            for line in content:
+                insert = line.strip().split('\t')
+                id_ = insert[0]
+                if id_ in library_id_2_ribotype: # if kmer exists in library; replacing it with shrunk_library_id_2_ribotype does not give sane result!
+                    if id_ in id_count:
+                        id_count[id_].extend(insert[1])
+                    else:
+                        id_count[id_] = insert[1]
+            if len(id_count) != 0:
+                readfile_dict[fn.replace('.txt', '')] = id_count
+
+################################################## get kmers counts per readfile as dict ##############################################################
+
+readfile_by_kmer = dict()
+
+for k, v in readfile_dict.items(): # for every readfile
+    kmer_count = collections.defaultdict(list)
+    for id_, count_ in v.items():
+        kmer_list = list(library_kmer_2_id.keys())
+        id_list = list(library_kmer_2_id.values())
+        kmer_position = id_list.index(id_)
+        kmer_ = kmer_list[kmer_position]
+        kmer_count[kmer_] = count_.replace("'", '')
+
+    missing_kmers = list(set(library_kmer_2_ribotype.keys()) - set(kmer_count.keys()))
+    for missing_kmer in missing_kmers:
+        kmer_count[missing_kmer] = '[0]'
+                                       
+    readfile_by_kmer[k] = kmer_count
+
+#readfile_by_kmer_df = pd.DataFrame.from_dict(readfile_by_kmer,orient='index')
+#readfile_by_kmer_df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/readfile_by_kmer_df_k'+str(kmer_size)+'.csv', index = True, header = True)
+
+
+################################################## get sum/mean/median counts of unique k-mers from prev step ##############################################################
+import statistics
+import pandas as pd
+
+readfile_by_kmer_sumcount = dict()
+readfile_by_kmer_meancount = dict()
+readfile_by_kmer_mediancount = dict()
+
+
+for k, v in readfile_by_kmer.items(): # for every readfile
+    # initialie dicts  
+    kmer_sumcount = collections.defaultdict(int)
+    kmer_meancount = collections.defaultdict(int)
+    kmer_mediancount = collections.defaultdict(int)
+    
+    for kmer_, count_ in v.items():
+        count_ = count_.strip('][').split(', ')
+        count_ = [ int(x) for x in count_ ] # convert to int
+        
+        sum_count = sum(count_)
+        mean_count = statistics.mean(count_)
+        median_count = statistics.median(count_)
+              
+        kmer_sumcount[kmer_] = sum_count
+        kmer_meancount[kmer_] = mean_count
+        kmer_mediancount[kmer_] = median_count
+
+    readfile_by_kmer_sumcount[k] = kmer_sumcount
+    readfile_by_kmer_meancount[k] = kmer_meancount    
+    readfile_by_kmer_mediancount[k] = kmer_mediancount  
+
+################################################## export data in x and y, ready for prediction ##############################################################
+
+# prep and export x data 
+readfile_by_kmer_sumcount_df = pd.DataFrame.from_dict(readfile_by_kmer_sumcount,orient='index')
+readfile_by_kmer_sumcount_df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/readfile_by_kmer_sumcount_df_k'+str(kmer_size)+'.csv', index = True, header = True)
+readfile_by_kmer_meancount_df = pd.DataFrame.from_dict(readfile_by_kmer_meancount,orient='index')
+readfile_by_kmer_meancount_df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/readfile_by_kmer_meancount_df_k'+str(kmer_size)+'.csv', index = True, header = True)
+readfile_by_kmer_mediancount_df = pd.DataFrame.from_dict(readfile_by_kmer_mediancount,orient='index')
+readfile_by_kmer_mediancount_df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/readfile_by_kmer_mediancount_df_k'+str(kmer_size)+'.csv', index = True, header = True)
+
+# prep and export y data
+df = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/noNA_downsized.csv')
+df = df.loc[df['accession'].isin(readfile_by_kmer_sumcount.keys())] 
+df = df.drop(columns='source_code')
+df = df.set_index('accession')
+df.index.name = None
+df = df.loc[readfile_by_kmer_sumcount_df.index]
+df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/readfile_by_kmer_trueribotype_df_k'+str(kmer_size)+'.csv', index = True, header = True)
+
+############################################################## prediction model ##############################################################
+####### random forest
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report
+
+X = readfile_by_kmer_mediancount_df.values
+y = np.ravel(df.values)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 21)
+
+# Feature Scaling
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Tuning
+from pprint import pprint
+from sklearn.model_selection import RandomizedSearchCV
+# Number of trees in random forest
+n_estimators = [int(x) for x in np.linspace(start = 200, stop = 2000, num = 10)]
+# Number of features to consider at every split
+max_features = ['auto', 'sqrt']
+# Maximum number of levels in tree
+max_depth = [int(x) for x in np.linspace(10, 110, num = 11)]
+max_depth.append(None)
+# Minimum number of samples required to split a node
+min_samples_split = [2, 5, 10]
+# Minimum number of samples required at each leaf node
+min_samples_leaf = [1, 2, 4]
+# Method of selecting samples for training each tree
+bootstrap = [True, False]
+# Create the random grid
+random_grid = {'n_estimators': n_estimators,
+               'max_features': max_features,
+               'max_depth': max_depth,
+               'min_samples_split': min_samples_split,
+               'min_samples_leaf': min_samples_leaf,
+               'bootstrap': bootstrap}
+
+# Use the random grid to search for best hyperparameters
+# First create the base model to tune
+rf = RandomForestClassifier()
+# Random search of parameters, using 3 fold cross validation, 
+# search across 100 different combinations, and use all available cores
+rf_random = RandomizedSearchCV(estimator = rf, param_distributions = random_grid, n_iter = 100, cv = 3, verbose=2, random_state=42, n_jobs = -1)
+# Fit the random search model
+rf_random.fit(X_train, y_train)
+# predict
+y_tuned_pred = rf_random.predict(X_test)
+# classification report
+print(classification_report(y_test, y_tuned_pred, labels=[1, 14, 27, 78]))
+cm_tuned = confusion_matrix(y_test, y_tuned_pred, labels=[1, 14, 27, 78])
+print(ConfusionMatrixDisplay(cm_tuned, display_labels = [1, 14, 27, 78]).plot())
+## get feature importances
+feat_importances = pd.Series(rf_random.best_estimator_.feature_importances_, index=readfile_by_kmer_sumcount_df.columns)
+feat_importances.nlargest(4).plot(kind='barh')
