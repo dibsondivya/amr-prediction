@@ -23,63 +23,6 @@ for line in file_content:
     kmer_2_id[kmer] = id_
     
 
-def create_list_csv(file):
-    id_count = collections.defaultdict(list)
-
-    accession = file.replace('_1.txt', '')
-    
-    output = open(file, "r")
-    Lines = output.readlines()
-    for line in Lines:
-        insert = line.strip().split('\t')
-        if insert and len(insert) == 2:
-            kmer = insert[0]
-            if kmer in kmer_2_id:
-                id_ = kmer_2_id[kmer]
-                id_count[id_].append(int(insert[1]))
-    
-    try:
-        output = open(file.replace('_1.txt','_2.txt'), "r")
-        Lines = output.readlines()
-        for line in Lines:
-            insert = line.strip().split('\t')
-            if insert and len(insert) == 2:
-                kmer = insert[0]
-                if kmer in kmer_2_id:
-                    id_ = kmer_2_id[kmer]
-                    id_count[id_].append(int(insert[1]))
-    except:
-        print('Error with file ' + file.replace('_1.txt','_2.txt'))
-
-    out = open('/rds/general/user/dds122/ephemeral/kmer_list_'+str(kmer_size)+'_df/' + accession + '.txt', 'w+')
-    for id_, count_ in id_count.items():
-        out.write(str(id_) + '	' + str(count_) + '\n')
-    out.close()
-
-    
-    pbar.update(1)
-    
-   
-file_list = []
-file31_list = []
-# restrict to top3 ribotype only files
-for file in os.listdir('/rds/general/user/dds122/ephemeral/kmer_31_txt/'):
-    if file.endswith('_1.txt'):
-        file31_list.append(file)
-for file in os.listdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_txt/'):
-    if file.endswith('_1.txt') and file in file31_list:
-        file_list.append(file)
-
-pbar = tqdm(total=len(file_list))
-
-
-## process samples        
-pool = ThreadPool(n_threads) 
-tmp_res = pool.map_async(create_list_csv, file_list)
-output = tmp_res.get()
-pool.close() 
-pool.join() 
-
 ################################################## get unique kmers in library ##############################################################
 #### get kmers that are unique to ribotype in library
 import sys
@@ -126,29 +69,6 @@ for line in file_content:
     #library_kmer_2_ribotype[kmer_] = ribotype_list.replace("['", '').replace("']", '') # for k=21 only
     library_kmer_2_ribotype[kmer_] = ribotype_list.replace("{'", '').replace("'}", '') # for k=17 and k=31
 
-#shrunk_library_kmer_2_ribotype = dict((k, v) for k, v in library_kmer_2_ribotype.items() if (v == '078') | (v == '027') | (v == '001') | (v == '014'))
-#shrunk_library_id_2_ribotype = dict((k, v) for k, v in library_id_2_ribotype.items() if (v == '078') | (v == '027') | (v == '001') | (v == '014'))
-
-## get distinct library kmers per ribotype
-print(Counter(shrunk_library_kmer_2_ribotype.values()))
-print(Counter(shrunk_library_id_2_ribotype.values()))
-
-## save files
-OutputFilename = 'shrunk_library_kmer_2_ribotype_k'+str(kmer_size)+'_dict.txt'
-OutputPath = '/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/'
-out_file = os.path.join(OutputPath,OutputFilename)
-out = open(out_file, 'w+')
-for kmer_, ribotype_ in shrunk_library_kmer_2_ribotype.items():
-    out.write(str(kmer_) + '	' + str(ribotype_) + '\n')
-out.close()       
-
-OutputFilename = 'shrunk_library_id_2_ribotype_k'+str(kmer_size)+'_dict.txt'
-OutputPath = '/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/'
-out_file = os.path.join(OutputPath,OutputFilename)
-out = open(out_file, 'w+')
-for id_, ribotype_ in shrunk_library_id_2_ribotype.items():
-    out.write(str(id_) + '	' + str(ribotype_) + '\n')
-out.close() 
 
 ################################################## get kmers counts list in read files ##############################################################
 # combine all txt one huge dictionary
@@ -196,7 +116,7 @@ for fn in tqdm(os.listdir(InputPath)):
 
 readfile_by_kmer = dict()
 
-for k, v in readfile_dict.items(): # for every readfile
+for k, v in tqdm(readfile_dict.items()): # for every readfile
     kmer_count = collections.defaultdict(list)
     for id_, count_ in v.items():
         kmer_list = list(library_kmer_2_id.keys())
@@ -211,9 +131,6 @@ for k, v in readfile_dict.items(): # for every readfile
                                        
     readfile_by_kmer[k] = kmer_count
 
-#readfile_by_kmer_df = pd.DataFrame.from_dict(readfile_by_kmer,orient='index')
-#readfile_by_kmer_df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/readfile_by_kmer_df_k'+str(kmer_size)+'.csv', index = True, header = True)
-
 
 ################################################## get sum/mean/median counts of unique k-mers from prev step ##############################################################
 import statistics
@@ -224,7 +141,7 @@ readfile_by_kmer_meancount = dict()
 readfile_by_kmer_mediancount = dict()
 
 
-for k, v in readfile_by_kmer.items(): # for every readfile
+for k, v in tqdm(readfile_by_kmer.items()): # for every readfile
     # initialie dicts  
     kmer_sumcount = collections.defaultdict(int)
     kmer_meancount = collections.defaultdict(int)
