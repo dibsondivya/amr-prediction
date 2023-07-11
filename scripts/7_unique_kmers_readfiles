@@ -9,7 +9,7 @@ import collections
 from tqdm import tqdm
 
 # initialize
-kmer_size = 21 # ACTIONABLE: to be declared
+kmer_size = 31 # ACTIONABLE: to be declared
 os.chdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_txt/')
 n_threads = 4
 
