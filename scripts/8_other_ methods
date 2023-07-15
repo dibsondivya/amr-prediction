@@ -199,11 +199,27 @@ ax.legend(loc='best')
 line_fit = sm.OLS(y_train, sm.add_constant(yhat, prepend=True)).fit()
 abline_plot(model_results=line_fit, ax=ax)
 
-ax.set_title('Linear Model Fit Plot')
+ax.set_title('Linear Model Fit Plot on Training Set')
 ax.set_ylabel('True Ribotypes')
 ax.set_xlabel('Predicted Ribtoypes');
 ax.set_yticks([1, 14, 27, 78])
 ax.set_xticks([1, 14, 27, 58, 78])
+
+## plot on test set
+fig, ax = plt.subplots()
+ypred = result.predict(exog=X_test)
+colors = ['tab:blue'] * len(ypred)
+
+ax.scatter(ypred, y_test,c=colors)
+ax.legend(loc='best')
+
+line_fit = sm.OLS(y_train, sm.add_constant(yhat, prepend=True)).fit()
+abline_plot(model_results=line_fit, ax=ax)
+
+ax.set_title('Linear Model Fit Plot on Test Set')
+ax.set_ylabel('True Ribotypes')
+ax.set_xlabel('Predicted Ribtoypes');
+ax.set_yticks([1, 14, 27, 78])
 
 # Residual Dependence Plot
 fig, ax = plt.subplots()
