@@ -264,7 +264,7 @@ SVCovo = OneVsOneClassifier(SVCmodel)
 # fit model
 SVCovo.fit(X_train, y_train)
 # make predictions
-SVCyhat = ovo.predict(X_test)
+SVCyhat = SVCovo.predict(X_test)
 
 print(classification_report(y_test, SVCyhat, labels=[1, 14, 27, 78]))
 cm = confusion_matrix(y_test, SVCyhat, labels=[1, 14, 27, 78])
