@@ -300,6 +300,32 @@ print(classification_report(y_test, yhat, labels=[1, 14, 27, 78]))
 cm = confusion_matrix(y_test, yhat, labels=[1, 14, 27, 78])
 print(ConfusionMatrixDisplay(cm, display_labels = [1, 14, 27, 78]).plot())
 
+############## logreg model feature importance ##############
+# get l1 coefficients feature importance!!
+log_reg = LogisticRegression(penalty='l1',
+                        C=1.0,
+                        solver='liblinear',
+                        multi_class='ovr')
+
+log_reg.fit(X_train, y_train)
+print('Training accuracy:', log_reg.score(X_train, y_train))
+print('Test accuracy:', log_reg.score(X_test, y_test))
+
+y_pred = log_reg.predict(X_test)
+
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report
+
+print(classification_report(y_test, y_pred, labels=[1, 14, 27, 78]))
+cm = confusion_matrix(y_test, y_pred, labels=[1, 14, 27, 78])
+print(ConfusionMatrixDisplay(cm, display_labels = [1, 14, 27, 78]).plot())
+
+coefficients = log_reg.coef_ # 4 rows, 3279  columns; one for each class
+
+avg_importance = np.mean(np.abs(coefficients), axis=0) # average across classes
+feature_importance = pd.DataFrame({'Feature': readfile_by_kmer_df.columns, 'Importance': avg_importance})
+feature_importance = feature_importance.sort_values('Importance', ascending=True)
+feature_importance.nlargest(4, 'Importance').plot(x='Feature', y='Importance', kind='barh', figsize=(10, 6))
+
 ############################## other models ##############################
 from lazypredict.Supervised import LazyClassifier
 
@@ -333,5 +359,6 @@ ax2.set_ylabel('Time Taken', color='r')
 [tl.set_color('r') for tl in ax2.get_yticklabels()]
 
 plt.show()
+
 
 
