@@ -1,0 +1,321 @@
+################################################## get unique kmers in library ##############################################################
+#### get kmers that are unique to ribotype in library
+import sys
+import subprocess
+import pandas as pd
+import os
+import csv
+from multiprocessing import Pool as ThreadPool  
+import collections
+from collections import Counter
+from tqdm import tqdm
+
+# initialize
+kmer_size = 17 # ACTIONABLE: to be declared
+os.chdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_txt/')
+n_threads = 4
+
+# load library kmers
+global library_kmer_2_id
+library_kmer_2_id = dict()
+file_content = csv.reader(open('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/kmer_id'+str(kmer_size)+'.csv'), delimiter=',')
+for line in file_content:
+    kmer = line[0]
+    id_ = line[1]
+    library_kmer_2_id[kmer] = id_
+
+global library_id_2_ribotype
+library_id_2_ribotype = dict()
+global library_kmer_2_ribotype
+library_kmer_2_ribotype = dict()
+file_content = csv.reader(open('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/id_ribotype'+str(kmer_size)+'.csv'), delimiter=',')
+for line in file_content:
+    id_ = line[0]
+    ribotype_list = line[1]
+    #print(ribotype_list)
+    #print(ribotype_list.count(','))
+    if ribotype_list.count(',') == 0:
+        #library_id_2_ribotype[id_] = ribotype_list.replace("['", '').replace("']", '') # for k=21 only
+        library_id_2_ribotype[id_] = ribotype_list.replace("{'", '').replace("'}", '') # for k=17 and k=31
+        kmer_list = list(library_kmer_2_id.keys())
+        id_list = list(library_kmer_2_id.values())
+        kmer_position = id_list.index(id_)
+        kmer_ = kmer_list[kmer_position]
+        #library_kmer_2_ribotype[kmer_] = ribotype_list.replace("['", '').replace("']", '') # for k=21 only
+        library_kmer_2_ribotype[kmer_] = ribotype_list.replace("{'", '').replace("'}", '') # for k=17 and k=31
+
+shrunk_library_kmer_2_ribotype = dict((k, v) for k, v in library_kmer_2_ribotype.items() if (v == '078') | (v == '027') | (v == '001') | (v == '014'))
+shrunk_library_id_2_ribotype = dict((k, v) for k, v in library_id_2_ribotype.items() if (v == '078') | (v == '027') | (v == '001') | (v == '014'))
+
+## get distinct library kmers per ribotype
+print(Counter(shrunk_library_kmer_2_ribotype.values()))
+print(Counter(shrunk_library_id_2_ribotype.values()))
+
+################################################## get kmers in read files ##############################################################
+# combine all txt one huge dictionary
+import json
+import os
+import math
+from tqdm import tqdm
+
+# Define output filename
+OutputFilename = 'new3_kmer'+str(kmer_size)+'_dict.txt'
+
+# Define path to input and output files
+InputPath  = '/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_df/'
+OutputPath = '/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/'
+
+# Define output file
+out_file = os.path.join(OutputPath,OutputFilename)
+
+readfile_dict = dict()
+
+def append_record(fn, record):
+    with open(fn, 'a') as f:
+        json.dump(record, f)
+
+# Loop through each file in input directory
+for fn in tqdm(os.listdir(InputPath)):
+    # Define full filename
+    in_file = os.path.join(InputPath,fn)
+    if os.path.isfile(in_file) and fn.endswith('.txt'):
+        with open(in_file, 'r') as file_in:
+            content = file_in.readlines()
+            id_present = collections.defaultdict(int)
+            for line in content:
+                insert = line.strip().split('\t')
+                id_ = insert[0]
+                if id_ in library_id_2_ribotype: # if kmer exists in library; replacing it with shrunk_library_id_2_ribotype does not give sane result!
+                      id_present[id_] = 1
+            if len(id_present) != 0:
+                readfile_dict[fn.replace('.txt', '')] = id_present
+
+# save to txt file
+out = open(out_file, 'w+')
+for id_, presence_ in id_present.items():
+    out.write(str(id_) + '	' + str(presence_) + '\n')
+out.close()     
+
+################################################## get per kmer counts of unique k-mers per readfile ##############################################################
+readfile_by_kmer = dict()
+
+for k, v in readfile_dict.items(): # for every readfile
+    kmer_count = collections.defaultdict(int)
+    for id_, presence_ in v.items():
+        kmer_list = list(library_kmer_2_id.keys())
+        id_list = list(library_kmer_2_id.values())
+        kmer_position = id_list.index(id_)
+        kmer_ = kmer_list[kmer_position]
+        extracted_count = presence_
+        #extracted_count = int(extracted_count)
+        kmer_count[kmer_] = extracted_count
+
+    missing_kmers = list(set(library_kmer_2_ribotype.keys()) - set(kmer_count.keys()))
+    for missing_kmer in missing_kmers:
+        kmer_count[missing_kmer] = 0
+    
+    readfile_by_kmer[k] = kmer_count
+
+################################################## export data in x and y, ready for prediction ##############################################################
+
+# prep and export x data 
+readfile_by_kmer_df = pd.DataFrame.from_dict(readfile_by_kmer,orient='index')
+readfile_by_kmer_df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/readfile_by_absence_kmer_df_k'+str(kmer_size)+'.csv', index = True, header = True)
+
+# prep and export y data
+df = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/noNA_downsized.csv')
+df = df.loc[df['accession'].isin(readfile_by_kmer_df.index.tolist())] 
+df = df.drop(columns='source_code')
+df = df.set_index('accession')
+df.index.name = None
+df = df.loc[readfile_by_kmer_df.index]
+df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/readfile_by_absence_kmer_trueribotype_df_k'+str(kmer_size), index = True, header = True)
+
+################################################## prediction model ##############################################################
+####### random forest
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report
+
+X = readfile_by_kmer_df.values
+y = np.ravel(df.values)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 21)
+
+############################## glm model ##############################
+import statsmodels.api as sm
+linear_model=sm.GLM(endog = y_train, exog = X_train) # used Gaussian
+result=linear_model.fit(xname=readfile_by_kmer_df.columns.tolist())
+#print(result.summary())
+results_as_html = result.summary().tables[1].as_html()
+coefs_df = pd.read_html(results_as_html, header=0, index_col=0)[0]
+coefs_df['kmer'] = readfile_by_kmer_df.columns.tolist()
+coefs_df = coefs_df.set_index('kmer')
+coefs_df
+
+significant_coefs = coefs_df[coefs_df['P>|z|'] < 0.05] # 94 rows left
+ribo_list = []
+for kmer in significant_coefs.index.tolist():
+    ribotype = library_kmer_2_ribotype[kmer]
+    ribo_list.append(ribotype)
+significant_coefs['library ribo'] = ribo_list
+significant_coefs['kmer'] = significant_coefs.index
+significant_coefs
+
+# significant plot
+import seaborn as sns
+ax = sns.barplot(x='kmer', y='coef', data=significant_coefs, hue='library ribo', dodge=False)
+plt.title(" K-mers with significant linear coefficients (P<0.05) ")
+plt.xticks(rotation=90, fontsize=5)
+
+plt.ylabel("Linear Coefficient")
+plt.xlabel("k-mer")
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
+
+# plot dist of library ribotypes
+significant_coefs['library ribo'].value_counts().plot(kind='bar')
+
+# try plot of confidence intervals
+#for lower,upper,y in zip(significant_coefs['[0.025'],significant_coefs['0.975]'],range(len(significant_coefs))):
+#    plt.plot((lower,upper),(y,y),'ro-',color='orange')
+#plt.yticks(range(len(significant_coefs)),list(significant_coefs.index))
+
+# get linear plot
+from statsmodels.graphics.api import abline_plot
+
+fig, ax = plt.subplots()
+yhat = result.mu
+colors = ['tab:blue'] * len(yhat)
+colors[231] = 'r'
+
+ax.scatter(yhat, y_train,c=colors)
+ax.scatter([],[],c='r',label='Outlier')
+ax.legend(loc='best')
+
+line_fit = sm.OLS(y_train, sm.add_constant(yhat, prepend=True)).fit()
+abline_plot(model_results=line_fit, ax=ax)
+
+ax.set_title('Linear Model Fit Plot')
+ax.set_ylabel('True Ribotypes')
+ax.set_xlabel('Predicted Ribtoypes');
+ax.set_yticks([1, 14, 27, 78])
+ax.set_xticks([1, 14, 27, 58, 78])
+
+# Residual Dependence Plot
+fig, ax = plt.subplots()
+
+ax.scatter(yhat, result.resid_pearson)
+ax.hlines(0, 0, 1)
+ax.set_xlim(0, 1)
+ax.set_title('Residual Dependence Plot')
+ax.set_ylabel('Pearson Residuals')
+ax.set_xlabel('Fitted values')
+
+# QQ plot
+from statsmodels import graphics
+graphics.gofplots.qqplot(result.resid_deviance.copy(), line='r')
+
+## remove outlier
+import numpy as np
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return array[idx]
+find_nearest(yhat, 60) # 58.31744936865806
+itemindex = np.where(yhat == 58.31744936865806)
+itemindex # 231
+
+del_linear_model=sm.GLM(endog = np.delete(y_train, 231, 0), exog = np.delete(X_train, 231, 0)) # used Gaussian
+del_result=del_linear_model.fit(xname=readfile_by_kmer_df.columns.tolist())
+
+from statsmodels import graphics
+graphics.gofplots.qqplot(del_result.resid_deviance.copy(), line='r')
+
+############################## svm model ##############################
+from sklearn.svm import SVC
+from sklearn.multiclass import OneVsOneClassifier
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report
+
+
+# define model
+SVCmodel = SVC()
+# define ovo strategy
+SVCovo = OneVsOneClassifier(SVCmodel)
+# fit model
+SVCovo.fit(X_train, y_train)
+# make predictions
+SVCyhat = ovo.predict(X_test)
+
+print(classification_report(y_test, SVCyhat, labels=[1, 14, 27, 78]))
+cm = confusion_matrix(y_test, SVCyhat, labels=[1, 14, 27, 78])
+print(ConfusionMatrixDisplay(cm, display_labels = [1, 14, 27, 78]).plot())
+
+############################## logreg model ##############################
+## ovo and l1
+from sklearn.linear_model import LogisticRegression
+# define model
+model = LogisticRegression(penalty='l1', solver='liblinear') # default is l2
+# define ovo strategy
+ovo = OneVsOneClassifier(model)
+# fit model
+ovo.fit(X_train, y_train)
+# make predictions
+yhat = ovo.predict(X_test)
+
+print(classification_report(y_test, yhat, labels=[1, 14, 27, 78]))
+cm = confusion_matrix(y_test, yhat, labels=[1, 14, 27, 78])
+print(ConfusionMatrixDisplay(cm, display_labels = [1, 14, 27, 78]).plot())
+
+## ovo and l2
+# define model
+model = LogisticRegression() # default is l2
+# define ovo strategy
+ovo = OneVsOneClassifier(model)
+# fit model
+ovo.fit(X_train, y_train)
+# make predictions
+yhat = ovo.predict(X_test)
+
+print(classification_report(y_test, yhat, labels=[1, 14, 27, 78]))
+cm = confusion_matrix(y_test, yhat, labels=[1, 14, 27, 78])
+print(ConfusionMatrixDisplay(cm, display_labels = [1, 14, 27, 78]).plot())
+
+############################## other models ##############################
+from lazypredict.Supervised import LazyClassifier
+
+# Fit all models
+clf = LazyClassifier(predictions=True)
+models, predictions = clf.fit(X_train, X_test, y_train, y_test)
+models
+
+#Plot graph with 2 y axes
+fig, ax1 = plt.subplots()
+
+#Plot bars
+ax1.bar(models.index.tolist(), 
+        models['Balanced Accuracy'], alpha=0.3)
+ax1.bar_label(ax1.containers[0], label_type='center', rotation=90, color='black', fmt='%.2f', padding=10)
+ax1.set_xlabel('Classification Method')
+ax1.set_xticklabels(models.index.tolist(), rotation=90)
+
+# Make the y-axis label and tick labels match the line color.
+ax1.set_ylabel('Balanced Accuracy', color='b')
+[tl.set_color('b') for tl in ax1.get_yticklabels()]
+
+
+#Set up ax2 to be the second y axis with x shared
+ax2 = ax1.twinx()
+#Plot a line
+ax2.plot(models.index.tolist(), models['Time Taken'], 'r-')
+
+# Make the y-axis label and tick labels match the line color.
+ax2.set_ylabel('Time Taken', color='r')
+[tl.set_color('r') for tl in ax2.get_yticklabels()]
+
+plt.show()
+
+
