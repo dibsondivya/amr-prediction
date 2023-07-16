@@ -53,8 +53,215 @@ pool.join()
 
 ############ convert fasta to png ############
 #pip install fasta2png
+import csv
+global accession_2_ribotype
+accession_2_ribotype = dict()
+file_content = csv.reader(open('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/noNA_downsized.csv'), delimiter=',')
+for line in file_content:
+    accession = line[0]
+    ribotype = line[2]
+    accession_2_ribotype[accession] = ribotype
+
+#fna2png --input <fna_input_in_fasta_format> --output <output_filename_of_png>
+
+os.chdir('/rds/general/user/dds122/')
+
+for file in tqdm(os.listdir('/rds/general/user/dds122/ephemeral/fasta_reads/')):
+    filename = file
+    filename_withnumber = filename.replace('.fa', '')
+    filename = filename_withnumber
+    if "_1" in filename:
+        filename = filename.replace('_1', '')
+
+    elif "_2" in filename:
+        filename = filename.replace('_2', '')   
+
+    true_ribotype = accession_2_ribotype[filename]
+    if true_ribotype == '78':
+        try:
+            subprocess.check_output('fna2png --input ephemeral/fasta_reads/' + file + ' --output ephemeral/images/' + true_ribotype + '/' + filename_withnumber + '.png', shell=True)
+        except subprocess.CalledProcessError as error:
+            sys.stdout.write("%s\n" % (str(error)))
 
 ############ store png in labelled folders (with ribotype) ############
+import splitfolders # or import splitfolders
+input_folder = "/rds/general/user/dds122/ephemeral/images"
+output = "/rds/general/user/dds122/ephemeral/images_classification" #where you want the split datasets saved. one will be created if it does not exist or none is set
+
+splitfolders.ratio(input_folder, output=output, seed=42, ratio=(.8, .2)) # ratio of split are in order of train/val/test. You can change to whatever you want. For train/val sets only, you could do .75, .25 for example.
 
 
 ########################################## classification ##########################################
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import numpy as np
+import torchvision
+from torchvision import *
+from torch.utils.data import Dataset, DataLoader
+import matplotlib.pyplot as plt
+import time
+import copy
+import os
+import pandas as pd
+import glob
+from keras import layers, models, optimizers, losses
+from keras.callbacks import ModelCheckpoint, EarlyStopping
+from keras.utils import to_categorical
+import tensorflow
+
+train_ds = tensorflow.keras.utils.image_dataset_from_directory(
+    '/rds/general/user/dds122/ephemeral/images_classification/train/',
+    label_mode='categorical',
+    labels = 'inferred',
+    shuffle=False,
+    class_names = ['1', '14', '27', '78'],
+    validation_split=0.2,
+    subset='training',
+    seed=123,
+    image_size=(800, 800),
+    batch_size=128)
+
+val_ds = tensorflow.keras.utils.image_dataset_from_directory(
+    '/rds/general/user/dds122/ephemeral/images_classification/train/',
+    label_mode='categorical',
+    labels = 'inferred',
+    shuffle=False,
+    class_names = ['1', '14', '27', '78'],
+    validation_split=0.2,
+    subset='validation',
+    seed=123,
+    image_size=(800, 800),
+    batch_size=128)
+
+class_names = train_ds.class_names
+#print(class_names)
+
+#import matplotlib.pyplot as plt
+
+#plt.figure(figsize=(10, 10))
+#for images, labels in train_ds.take(1):
+#  for i in range(4):
+#    ax = plt.subplot(4, 4, i + 1)
+#    plt.imshow(images[i].numpy().astype("uint8"))
+#    plt.title(class_names[i])
+#    plt.axis("off")
+
+#for image_batch, labels_batch in train_ds:
+#  print(image_batch.shape) # (128, 800, 800, 3)
+#  print(labels_batch.shape) # (128, 4)
+#  break
+
+test_ds = tensorflow.keras.utils.image_dataset_from_directory(
+    '/rds/general/user/dds122/ephemeral/images_classification/val/',
+    label_mode='categorical',
+    labels = 'inferred',
+    shuffle=False,
+    class_names = ['1', '14', '27', '78'],
+    seed=123,
+    image_size=(800, 800),
+    batch_size=128)
+
+AUTOTUNE = tensorflow.data.AUTOTUNE
+train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
+val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
+test_ds = test_ds.cache().prefetch(buffer_size=AUTOTUNE)
+
+normalization_layer = layers.Rescaling(1./255)
+normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
+image_batch, labels_batch = next(iter(normalized_ds))
+first_image = image_batch[0]
+# Notice the pixel values are now in `[0,1]`.
+print(np.min(first_image), np.max(first_image))
+
+num_classes = len(class_names)
+
+############# specific model
+model = models.Sequential([
+  layers.Rescaling(1./255, input_shape=(800, 800, 3)),
+  layers.Conv2D(16, 3, padding='same', activation='relu'),
+  layers.MaxPooling2D(),
+  layers.Conv2D(32, 3, padding='same', activation='relu'),
+  layers.MaxPooling2D(),
+  layers.Conv2D(64, 3, padding='same', activation='relu'),
+  layers.MaxPooling2D(),
+  layers.Conv2D(128, 3, padding='same', activation='relu'),
+  layers.MaxPooling2D(),
+  layers.Flatten(),
+  layers.Dense(128, activation='relu'),
+  layers.Dense(num_classes)
+])
+
+model.summary()
+
+from keras.optimizers import Adam
+model.compile(optimizer=Adam(learning_rate=0.0001),
+              loss=tensorflow.keras.losses.CategoricalCrossentropy(from_logits=True),
+              metrics=['accuracy'])
+
+from keras import layers, models, optimizers, losses
+from keras.optimizers import Adam
+from keras.callbacks import ModelCheckpoint, EarlyStopping
+best_model_weights = './base.model'
+
+checkpoint = ModelCheckpoint(
+    best_model_weights,
+    monitor = 'val_acc',
+    verbose = 1,
+    save_best_only = True,
+    mode = 'min',
+    save_weights_only = False,
+    save_freq = 1)
+callbacks = [checkpoint]
+
+epochs=200
+history = model.fit(
+  train_ds,
+    validation_data=val_ds,
+    epochs=epochs,
+    verbose = 1,
+    callbacks = callbacks
+)
+
+acc = history.history['accuracy']
+val_acc = history.history['val_accuracy']
+
+loss = history.history['loss']
+val_loss = history.history['val_loss']
+
+epochs_range = range(epochs)
+
+plt.figure(figsize=(8, 8))
+plt.subplot(1, 2, 1)
+plt.plot(epochs_range, acc, label='Training Accuracy')
+plt.plot(epochs_range, val_acc, label='Validation Accuracy')
+plt.legend(loc='lower right')
+plt.title('Training and Validation Accuracy')
+plt.savefig('/rds/general/user/dds122/home/accuracy_200.png')
+
+plt.subplot(1, 2, 2)
+plt.plot(epochs_range, loss, label='Training Loss')
+plt.plot(epochs_range, val_loss, label='Validation Loss')
+plt.legend(loc='upper right')
+plt.title('Training and Validation Loss')
+plt.show()
+plt.savefig('/rds/general/user/dds122/home/loss_200.png')
+
+
+test_loss, test_acc = model.evaluate(test_ds, verbose=3)
+print('\nTest accuracy:', test_acc)
+
+y_pred = model.predict(test_ds)
+predicted_categories = np.argmax(y_pred, axis = 1)
+true_categories = tensorflow.concat([y for x, y in test_ds], axis = 0).numpy() # convert to np array
+true_categories_argmax = np.argmax(true_categories, axis = 1)
+from sklearn.metrics import classification_report
+print(classification_report(true_categories_argmax, predicted_categories))
+
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+s = sns.heatmap(confusion_matrix(y_true = true_categories_argmax, y_pred = predicted_categories),
+           annot = True, fmt='d', xticklabels=class_names, yticklabels=class_names)
+s.set(xlabel='Predicted', ylabel='True', title='Confusion Matrix')
+plt.savefig('/rds/general/user/dds122/home/confusion_matrix_200.png')
