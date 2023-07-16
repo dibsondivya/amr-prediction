@@ -1,10 +1,60 @@
 ########################################## prepare images ##########################################
-#### convert fastq to fasta
+############ convert fastq to fasta ############
+#conda install -c bioconda seqtk
 
-#### convert fasta to png
+import os
+import pandas as pd
+import subprocess
+import sys
+from multiprocessing import Pool as ThreadPool 
+from tqdm import tqdm
+
+os.chdir('/rds/general/user/dds122/')
+#  seqtk seq -a in.fq.gz > out.fa
+
+def fastq2fasta(fastq_file):
+    
+    file = fastq_file.replace('.fastq.gz', '.fa')
+
+    try:
+        subprocess.check_output('seqtk seq -a projects/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/reads/' + fastq_file + ' > ephemeral/fasta_reads/' + file, shell=True)
+    except subprocess.CalledProcessError as error:
+        sys.stdout.write("%s\n" % (str(error)))
+        
+    pbar.update(1)
+
+# get input   
+df = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/noNA_downsized.csv')
+df = df[(df['ribotype'] == 1) | (df['ribotype'] == 27) | (df['ribotype'] == 78) | (df['ribotype'] == 14)]
+SRA_ID_list = df['accession'].tolist()
+
+fastq_list = list() # 2946; 1473 unique readfiles
+for file in os.listdir('/rds/general/user/dds122/projects/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/reads/'):
+    filename = file
+    filename = filename.replace('.fastq.gz', '')
+    if "_1" in filename:
+        filename = filename.replace('_1', '')
+        
+    elif "_2" in filename:
+        filename = filename.replace('_2', '')   
+    if filename in SRA_ID_list:
+        fastq_list.append(file)
+
+pbar = tqdm(total=len(fastq_list))
+
+# process samples 
+n_threads = 4
+pool = ThreadPool(n_threads) 
+tmp_res = pool.map_async(fastq2fasta, fastq_list, chunksize=None)
+output = tmp_res.get()
+pool.close() 
+pool.join() 
+
+
+############ convert fasta to png ############
 #pip install fasta2png
 
-#### store png in labelled folders (with ribotype)
+############ store png in labelled folders (with ribotype) ############
 
 
 ########################################## classification ##########################################
