@@ -1,0 +1,10 @@
+########################################## prepare images ##########################################
+#### convert fastq to fasta
+
+#### convert fasta to png
+#pip install fasta2png
+
+#### store png in labelled folders (with ribotype)
+
+
+########################################## classification ##########################################
