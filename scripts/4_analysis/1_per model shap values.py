@@ -17,13 +17,32 @@ readfile_by_kmer_df = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_pr
 ########################## for l1 ##########################
 method = 'l1'
 
+log_reg = joblib.load(filepath+'models/k'+k+'_'+kmer+'_'+predicting+'_'+method+'.joblib') # load model
+explainer = shap.LinearExplainer(log_reg, readfile_by_kmer_df)
+shap_values = explainer.shap_values(readfile_by_kmer_df)
+
 ########################## for l2 ##########################
-feature_imp2 = feature_imp1
+feature_imp2 = feature_imp
 method = 'l2'
-logreg2 = joblib.load(filepath+'models/k'+k+'_'+kmer+'_'+predicting+'_'+method+'.joblib') # load model
 
+log_reg2 = joblib.load(filepath+'models/k'+k+'_'+kmer+'_'+predicting+'_'+method+'.joblib') # load model
+explainer = shap.LinearExplainer(log_reg2, readfile_by_kmer_df)
+shap_values = explainer.shap_values(readfile_by_kmer_df)
 
-
+def shapley_feature_ranking(j, X):
+    feature_order = np.argsort(np.mean(np.abs(shap_values[j]), axis=0))
+    return pd.DataFrame(
+        {"class": log_reg2.classes_[j],
+         "model": "L2 Logistic Regression",
+            "features": [X.columns[i] for i in feature_order[::-1][:3]],
+            "importance": [
+                np.mean(np.abs(shap_values[j]), axis=0)[i] for i in feature_order[::-1][:3]
+            ],
+        }
+    )
+for i in range(len(log_reg2.classes_)):
+    output = shapley_feature_ranking(i, readfile_by_kmer_df)
+    feature_imp2 = feature_imp2.append(output) 
 
 ########################## for rf ##########################
 feature_imp3 = feature_imp2
