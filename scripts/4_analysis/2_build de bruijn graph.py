@@ -20,10 +20,9 @@ def rev_compl(seq):
     return "".join(reverse_code[n] for n in reversed(seq))
 
 
-     
 
-ribotype = '999255'
-kmer_size = '21'
+ribotype = '999255' # change as required
+kmer_size = '21' # change as required
 
 
 colors = {'L1 Logistic Regression': 'red', 'L2 Logistic Regression': 'orange', 'Random Forest': 'blue'}
