@@ -7,7 +7,7 @@ from tqdm import tqdm
 kmer_size = 21
 
 # Define output filename
-OutputFilename = 'top3_kmer'+str(kmer_size)+'_dict.txt'
+OutputFilename = 'top10_kmer'+str(kmer_size)+'_dict.txt'
 
 # Define path to input and output files
 InputPath  = '/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_df/'
