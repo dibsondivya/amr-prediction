@@ -10,9 +10,10 @@ from sklearn.linear_model import LogisticRegression
 
 ## note: analysing rf, l1 and l2 only
 kmer = '21'
-predicting = 'kmer' # or 'all'
+predicting = 'all' # or 'kmer'
 
-readfile_by_kmer_df = 
+readfile_by_kmer_df = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/10ribo_X_test_readfile_by_all_absence_df_k'+str(kmer_size)+'.csv', index_col = 0)
+
 ########################## for l1 ##########################
 method = 'l1'
 
