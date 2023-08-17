@@ -34,13 +34,13 @@ for line in file_content:
     ribotype_list = line[1]
     #print(ribotype_list)
     #print(ribotype_list.count(','))
-    if ribotype_list.count(',') == 0: # if only one ribotype exists for this kmer id
-        library_id_2_ribotype[id_] = ribotype_list.replace("{'", '').replace("'}", '') # for k=17 and k=31
+    if ribotype_list.count(',') == 0: # if only one ribotype exists for this kmer id. # UNIQUE KMERS; remove this to get all library kmers
+        library_id_2_ribotype[id_] = ribotype_list.replace("{'", '').replace("'}", '') 
         kmer_list = list(library_kmer_2_id.keys())
         id_list = list(library_kmer_2_id.values())
         kmer_position = id_list.index(id_)
         kmer_ = kmer_list[kmer_position]
-        library_kmer_2_ribotype[kmer_] = ribotype_list.replace("{'", '').replace("'}", '') # for k=17 and k=31
+        library_kmer_2_ribotype[kmer_] = ribotype_list.replace("{'", '').replace("'}", '')
         
 ################################################## get kmers counts list in read files ##############################################################
 # combine all txt one huge dictionary
