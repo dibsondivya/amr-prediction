@@ -16,7 +16,7 @@ OutputPath = '/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05
 # Define output file
 out_file = os.path.join(OutputPath,OutputFilename)
 
-id_count = collections.defaultdict(int)
+id_count = collections.defaultdict(list)
 
 def append_record(fn, record):
     with open(fn, 'a') as f:
@@ -34,7 +34,7 @@ for fn in tqdm(os.listdir(InputPath)):
                 insert = line.strip().split('\t')
                 id_ = insert[0]
                 if id_ in id_count: # add to dictionary
-                    id_count[id_] += int(insert[1])
+                    id_count[id_].extend(insert[1])
                 else:
                     id_count[id_] = int(insert[1])
 
