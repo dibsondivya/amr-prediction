@@ -111,7 +111,7 @@ for k, v in tqdm(readfile_dict.items()): # for every readfile
     readfile_by_kmer[k] = kmer_count
 
 ################################################## account for files with no kmers belonging to library ##############################################################
-for file in os.listdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_df/'):
+for file in os.listdir('/rds/general/user/dds122/ephemeral/kmer_list_'+str(kmer_size)+'_df/'):
     filename = file.replace('.txt', '')
     if filename not in readfile_by_kmer.keys() and file.endswith('.txt'):
         kmer_count = collections.defaultdict(int)
