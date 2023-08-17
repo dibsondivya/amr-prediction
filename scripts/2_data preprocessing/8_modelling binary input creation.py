@@ -123,8 +123,15 @@ for file in os.listdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)
 ################################################## export data in x and y, ready for prediction ##############################################################
 
 # prep and export x data 
+## x_train index
+training = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/X_train_readfile_by_absence_kmer_df_k17.csv', index_col=0)
+testing = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/X_test_readfile_by_absence_kmer_df_k17.csv', index_col=0)
+
 readfile_by_kmer_df = pd.DataFrame.from_dict(readfile_by_kmer,orient='index')
-readfile_by_kmer_df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/readfile_by_absence_kmer_df_k'+str(kmer_size)+'.csv', index = True, header = True)
+X_train = readfile_by_kmer_df.loc[training.index]
+X_test = readfile_by_kmer_df.loc[testing.index]
+X_train.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/10ribo_X_train_readfile_by_kmer_absence_df_k'+str(kmer_size)+'.csv', index = True, header = True)
+X_test.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/10ribo_X_test_readfile_by_kmer_absence_df_k'+str(kmer_size)+'.csv', index = True, header = True)
 
 # prep and export y data
 df = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/noNA_downsized.csv')
