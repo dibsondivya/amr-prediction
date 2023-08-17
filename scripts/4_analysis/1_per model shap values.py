@@ -12,6 +12,7 @@ from sklearn.linear_model import LogisticRegression
 kmer = '21'
 predicting = 'kmer' # or 'all'
 
+readfile_by_kmer_df = 
 ########################## for l1 ##########################
 method = 'l1'
 
@@ -28,6 +29,8 @@ feature_imp3 = feature_imp2
 
 method = 'rf'
 best_rf = joblib.load(filepath+'models/k'+k+'_'+kmer+'_'+predicting+'_'+method+'.joblib') # load model
+explainer = shap.Explainer(best_rf, readfile_by_kmer_df)
+shap_values = explainer.shap_values(readfile_by_kmer_df)
 
 def shapley_feature_ranking(j, X):
     feature_order = np.argsort(np.mean(np.abs(shap_values[j]), axis=0))
