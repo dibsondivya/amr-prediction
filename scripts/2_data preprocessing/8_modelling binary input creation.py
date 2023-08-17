@@ -111,7 +111,15 @@ for k, v in readfile_dict.items(): # for every readfile
         kmer_count[missing_kmer] = 0
     
     readfile_by_kmer[k] = kmer_count
-
+    
+################################################## account for files with no kmers belonging to library ##############################################################
+for file in os.listdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_df/'):
+    filename = file.replace('.txt', '')
+    if filename not in readfile_by_kmer.keys() and file.endswith('.txt'):
+        kmer_count = collections.defaultdict(int)
+        for kmer_ in library_kmer_2_ribotype.keys():
+            kmer_count[kmer_] = 0 # tried w 0
+        readfile_by_kmer[filename] = kmer_count
 ################################################## export data in x and y, ready for prediction ##############################################################
 
 # prep and export x data 
