@@ -135,10 +135,11 @@ X_test.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/0
 
 # prep and export y data
 df = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/noNA_downsized.csv')
-df = df.loc[df['accession'].isin(readfile_by_kmer_df.index.tolist())] 
+df = df.loc[df['accession'].isin(readfile_by_kmer_sumcount.keys())] 
 df = df.drop(columns='source_code')
 df = df.set_index('accession')
 df.index.name = None
-df = df.loc[readfile_by_kmer_df.index]
-df.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/readfile_by_absence_kmer_trueribotype_df_k'+str(kmer_size), index = True, header = True)
-
+y_train = df.loc[training.index]
+y_test = df.loc[testing.index]
+y_train.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/10ribo_y_train_readfile_by_all_kmer_trueribotype_df_k'+str(kmer_size)+'.csv', index = True, header = True)
+y_test.to_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/10ribo_y_test_readfile_by_all_kmer_trueribotype_df_k'+str(kmer_size)+'.csv', index = True, header = True)
