@@ -1,0 +1,286 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+library(readr)
+library(dplyr)
+library(stringr)
+enterobase <- read_tsv("PCR_Selected.txt")
+enterobase$data_source <- enterobase$`Data Source(Accession No.;Sequencing Platform;Sequencing Library;Insert Size;Experiment;Status)`
+enterobase$ribotype <- enterobase$`PCR Ribotype`
+
+data_source <- as.vector.data.frame(enterobase$data_source)
+
+separated <- tidyr::separate(enterobase,
+                data_source, 
+                into = c("A", "B", "C", "D", "E", "F", "G"), 
+                sep = ";", fill = "right", extra = "drop")
+#View(separated)
+
+separated$source_code <- substr(separated$A, 1, 3)
+table(separated$source_code) # ERR  GCA  GCF  SRR  tra 
+
+separated$data_source <- separated$`Data Source(Accession No.;Sequencing Platform;Sequencing Library;Insert Size;Experiment;Status)`
+
+separated 
+edited_GCA_GCF <- separated %>% mutate(A = ifelse(source_code == 'GCA' | source_code == 'GCF',
+                                str_extract(data_source,"ERR[0-9]+"),
+                                A
+                                )
+                     )
+
+edited_GCA_GCF$source_code <- substr(edited_GCA_GCF$A, 1, 3)
+table(edited_GCA_GCF$source_code) # ERR, SRR, tra
+```
+```{r}
+sum(is.na(edited_GCA_GCF$ribotype))
+```
+
+
+```{r}
+library(readxl)
+paper <- read_excel("mgen-8-0804-s002.xlsx")
+paper
+paper$source_code <- substr(paper$`SRA accession number`, 1, 3)
+paper$accession <- paper$`SRA accession number`
+table(paper$source_code) # ERR, ERS, SRR
+```
+
+
+```{r}
+sum(is.na(paper$Ribotype)) # 576
+```
+
+```{r}
+enterobase_strain_info <- edited_GCA_GCF %>% filter(source_code != 'tra') %>% rename(accession = A) %>% filter(ribotype == 106 | ribotype == 78 | ribotype == 27 | ribotype == 20 | ribotype == 17 | ribotype == 15 | ribotype == 14 | ribotype == 5 | ribotype == 2 | ribotype == 1 )
+
+#write.table(enterobase_strain_info, file = "enterobase_strain_info.txt", sep = "\t",
+#            row.names = FALSE)
+```
+
+```{r}
+combined <- rbind(edited_GCA_GCF %>% filter(source_code != 'tra') %>% select(c(A, source_code, ribotype)) %>% rename(accession = A),
+      paper %>% select(c(accession, source_code, Ribotype)) %>% rename(ribotype = Ribotype)
+      )
+combined
+```
+
+```{r}
+length(unique(combined$accession)) # 6362 unique compared to 6787 present
+
+n_occur <- data.frame(table(combined$accession))
+twice_occur <- n_occur[n_occur$Freq > 1,]
+dim(twice_occur) # 424 appeared across both databases
+
+
+for (id in twice_occur$Var1){
+  if (combined[combined$accession == id,]$ribotype[1] != combined[combined$accession == id,]$ribotype[2]){
+    print(id)
+  }
+} # ERR126276
+
+combined[combined$accession == 'ERR126276',] # 75 and 78 ## remove this
+
+cleaned_combined <- combined[combined$accession != 'ERR126276',]
+ribotype_list <- c()
+
+twice_ribotype_occur  <- twice_occur %>% 
+  filter(Var1 != 'ERR126276')  %>% 
+  inner_join(cleaned_combined, by = join_by(Var1 == accession))
+twice_ribotype_occur <- twice_ribotype_occur[!duplicated(twice_ribotype_occur),]
+duplicated_ribotypes <- data.frame(sort(table(twice_ribotype_occur$ribotype)))
+
+library(ggplot2)
+ggplot(data = duplicated_ribotypes, 
+       mapping = aes(x =  Var1, y = Freq))  +
+  geom_bar(stat="identity", fill = 'steelblue') +
+  theme_bw() +
+  geom_text(aes(label=Freq), vjust=-0.3, size=3.5) +
+  labs(title="Commonly Duplicated Ribotypes across Enterobase and Paper", 
+       x="Ribotype", 
+       y = "Frequency")
+
+
+distinct_cleaned_combined <- cleaned_combined %>% distinct()
+length(unique(distinct_cleaned_combined$accession))
+
+count_table <- data.frame(sort(table(distinct_cleaned_combined$ribotype), decreasing = TRUE)) %>% rename(Ribotype = Var1, Frequency = Freq)
+count_table
+
+sort(table(distinct_cleaned_combined$ribotype), decreasing = TRUE)[1:10]
+
+library(ggrepel)
+ggplot(data = distinct_cleaned_combined, 
+       mapping = aes(x =  ribotype))  +
+  geom_bar(stat="count", fill = 'steelblue') +
+  theme_bw() +
+  geom_text_repel(stat='count', aes(label=..count..), vjust=-0.3, size=3.5) +
+  labs(title="Unique Ribotypes across Enterobase and Paper", 
+       x="Ribotype", 
+       y = "Frequency")
+
+ggplot(data = distinct_cleaned_combined, 
+       mapping = aes(x =  ribotype))  +
+  geom_bar(stat="count", fill = 'steelblue') +
+  theme_bw() +
+  geom_text_repel(stat='count', aes(label=ifelse(..count.. >= 178,
+                                           ..count..,
+                                           NA)), vjust=-0.3, size=3.5) +
+  labs(title="Unique Ribotypes across Enterobase and Paper", 
+       subtitle='Top 10 Ribotypes labelled',
+       x="Ribotype", 
+       y = "Frequency")
+
+ggplot(data = distinct_cleaned_combined, 
+       mapping = aes(x =  factor(ribotype)))  +
+  geom_bar(stat="count", fill = 'steelblue') +
+  theme_bw() +
+  #geom_text_repel(stat='count', aes(label=..count..), vjust=-0.3, size=3.5) +
+  labs(title="Unique Ribotypes across Enterobase and Paper", 
+       x="Ribotype", 
+       y = "Frequency")
+```
+
+```{r}
+combined_withoutERS <- rbind(edited_GCA_GCF %>% filter(source_code != 'tra') %>% select(c(A, source_code, ribotype)) %>% rename(accession = A),
+      paper  %>% filter(source_code != 'ERS') %>% select(c(accession, source_code, Ribotype)) %>% rename(ribotype = Ribotype)
+      )
+
+sort(table(combined_withoutERS$ribotype), decreasing = TRUE)[1:10] # all 68 ERS as having ribotype 78
+```
+
+```{r}
+#top10 <- combined %>% filter(ribotype %in% names(sort(table(distinct_cleaned_combined$ribotype), decreasing = TRUE)[1:10]))
+
+top10 <- distinct_cleaned_combined %>% filter(ribotype %in% names(sort(table(distinct_cleaned_combined$ribotype), decreasing = TRUE)[1:10]))
+top10
+
+dim(top10)[1]/dim(distinct_cleaned_combined)[1]
+```
+
+```{r}
+ggplot(data = top10, 
+       mapping = aes(x =  factor(ribotype)))  +
+  geom_bar(stat="count", fill = 'steelblue') +
+  theme_bw() +
+  geom_text(stat='count', aes(label=..count..), vjust=-0.3, size=3.5) +
+  labs(title="Top 10 Ribotypes across Enterobase and Paper", 
+       x="Ribotype", 
+       y = "Frequency")
+```
+
+```{r}
+top10[top10$source_code == 'ERS',]
+```
+
+
+```{r}
+file.create("list_SRA_ID.txt")
+fileConn<-file("list_SRA_ID.txt")
+#writeLines(top10$accession, fileConn)
+close(fileConn)
+```
+
+
+
+```{r}
+distinct_cleaned_combined #6361 rows
+```
+
+
+```{r}
+noNA_distinct_cleaned_combined <- distinct_cleaned_combined%>% filter(!is.na(ribotype)) # 5785 ROWS
+noNA_distinct_cleaned_combined
+```
+
+
+```{r}
+#write.csv(distinct_cleaned_combined, "distinct_cleaned_combined.csv", row.names=FALSE)
+```
+
+```{r}
+#write.csv(noNA_distinct_cleaned_combined, "noNA_distinct_cleaned_combined.csv", row.names=FALSE)
+```
+
+```{r}
+noNA_top10 <- top10 %>% filter(!is.na(ribotype)) # still 4162 rows
+#write.csv(noNA_top10, "noNA_top10.csv", row.names=FALSE)
+```
+
+```{r}
+downsized <- noNA_top10 %>% filter(ribotype != 27 & ribotype != 78)
+downsize_27 <- noNA_top10 %>% filter(ribotype == 27)
+downsize_27$sample_no <- sample(1:nrow(downsize_27))
+smaller_27 <- downsize_27 %>% filter(sample_no <= 500)
+downsized <- rbind(downsized, smaller_27 %>% select(c(accession, source_code, ribotype)))
+
+downsize_78 <- noNA_top10 %>% filter(ribotype == 78)
+downsize_78$sample_no <- sample(1:nrow(downsize_78))
+smaller_78 <- downsize_78 %>% filter(sample_no <= 500)
+downsized <- rbind(downsized, smaller_78 %>% select(c(accession, source_code, ribotype)))
+
+downsized # 3208 accession ids
+#write.csv(downsized, "noNA_downsized.csv", row.names=FALSE)
+
+ggplot(data = downsized, 
+       mapping = aes(x =  factor(ribotype)))  +
+  geom_bar(stat="count", fill = 'steelblue') +
+  theme_bw() +
+  geom_text(stat='count', aes(label=..count..), vjust=-0.3, size=3.5) +
+  labs(title="Top 10 Ribotypes across Enterobase and Paper after Downsizing", 
+       x="Ribotype", 
+       y = "Frequency")
+
+file.create("downsized_list_SRA_ID.txt")
+fileConn<-file("downsized_list_SRA_ID.txt")
+writeLines(downsized$accession, fileConn)
+close(fileConn)
+
+
+remaining_from_downsized <- rbind(downsize_78 %>% filter(sample_no > 500), 
+                                  downsize_27 %>% filter(sample_no >500))
+remaining_from_downsized <- remaining_from_downsized %>% select(c(accession, source_code, ribotype))
+write.csv(remaining_from_downsized, "noNA_remaining_from_downsized.csv", row.names=FALSE)
+```
+
+
+
+```{r ska}
+random10_ska <- downsized %>% group_by(ribotype) %>% sample_n(10)
+random10_ska
+write.csv(random10_ska, "noNA_random10_ska.csv", row.names=FALSE)
+
+firstfastq <- paste0('reads/', random10_ska$accession,'_1.fastq.gz')
+secondfastq <- paste0('reads/',random10_ska$accession,'_2.fastq.gz')
+txt <- paste0(random10_ska$accession, " ", firstfastq, " ", secondfastq)
+
+file.create("input_sequence.txt")
+fileConn<-file("input_sequence.txt")
+writeLines(txt, fileConn)
+close(fileConn)
+```
+
+
+
+
+
+
+
+
+
+
+```{r}
+library(readr)
+library(dplyr)
+checked_distinct_cleaned_combined <- read_csv("checked_distinct_cleaned_combined.csv")
+checked_distinct_cleaned_combined <- checked_distinct_cleaned_combined %>% select(c(accession, source_code, ribotype))
+checked_distinct_cleaned_combined
+length(unique(checked_distinct_cleaned_combined$accession)) # ERS map to unique ERR!
+table(checked_distinct_cleaned_combined$source_code)
+```
+
+
+
