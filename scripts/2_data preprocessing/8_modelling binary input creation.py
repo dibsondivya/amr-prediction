@@ -123,7 +123,7 @@ for file in os.listdir('/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)
 ################################################## export data in x and y, ready for prediction ##############################################################
 
 # prep and export x data 
-## x_train index
+## x_train index to ensure same split across k-mer sizes and input types; initial split implemented through sklearn
 training = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/X_train_readfile_by_absence_kmer_df_k17.csv', index_col=0)
 testing = pd.read_csv('/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/X_test_readfile_by_absence_kmer_df_k17.csv', index_col=0)
 
