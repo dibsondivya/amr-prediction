@@ -46,7 +46,7 @@ def create_csv(file):
                 kmer = insert[0]
                 if kmer in kmer_2_id:
                     id_ = kmer_2_id[kmer]
-                    id_count[id_] += int(insert[1])
+                    id_count[id_] += int(insert[1]) # sum counts across both ends
     except:
         print('Error with file ' + file.replace('_1.txt','_2.txt'))
 
