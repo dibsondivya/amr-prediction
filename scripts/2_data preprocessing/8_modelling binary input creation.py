@@ -34,7 +34,7 @@ for line in file_content:
     ribotype_list = line[1]
     #print(ribotype_list)
     #print(ribotype_list.count(','))
-    if ribotype_list.count(',') == 0:
+    if ribotype_list.count(',') == 0: # UNIQUE KMERS; remove this to get all library kmers
         library_id_2_ribotype[id_] = ribotype_list.replace("['", '').replace("']", '') # for k=21 only
         #library_id_2_ribotype[id_] = ribotype_list.replace("{'", '').replace("'}", '') # for k=17 and k=31
         kmer_list = list(library_kmer_2_id.keys())
