@@ -24,11 +24,15 @@ all_X_train = pd.read_csv(filepath+'10ribo_X_train_readfile_by_'+kmer+'_absence_
 all_X_test= pd.read_csv(filepath+'10ribo_X_test_readfile_by_'+kmer+'_absence_df_k'+k+'.csv', index_col=0)
 
 for i in range(len(label_list)):
-    regular_l1 = LogisticRegression(penalty='l1', C=1, solver='liblinear') # default is l2
+    kmer = 'kmer'
+    model = joblib.load(filepath+'models/k'+k+'_'+kmer+'_'+predicting+'_'+method+'.joblib') # load ovo model
+    regular_l1 = LogisticRegression(**model.estimator.get_params()) # feed optimized parameters into logreg 
     regular_l1.fit(unique_X_train, y_train)
     unique_kmer_list = unique_X_train.iloc[:,regular_l1.coef_[i]!=0].columns.tolist()
-    
-    all_l1 = LogisticRegression(penalty='l1', C=1, solver='liblinear') # default is l2
+
+    kmer = 'all'
+    model = joblib.load(filepath+'models/k'+k+'_'+kmer+'_'+predicting+'_'+method+'.joblib') # load ovo model
+    all_l1 = LogisticRegression(**model.estimator.get_params()) # feed optimized parameters into logreg 
     all_l1.fit(all_X_train, y_train)
     all_kmer_list = all_X_train.iloc[:,all_l1.coef_[0]!=0].columns.tolist()
     
