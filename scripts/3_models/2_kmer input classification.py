@@ -162,10 +162,9 @@ def results_gen(k):
     SVCovo = OneVsOneClassifier(SVCmodel)
     # hyperparam tuning
     SVCparam_grid = {
-        'estimator__kernel':('linear', 'rbf', 'poly'), 
-        'estimator__degree': [1, 2, 3, 4, 5],
-        'estimator__gamma': [1, 0.1, 0.01, 0.001, 0.0001],
-        'estimator__C':[0.001, 0.01, 0.1, 1, 10, 100, 1000]
+        'estimator__kernel':('sigmoid', 'rbf', 'poly'), 
+        'estimator__gamma': [1, 0.1, 0.01, 0.001],
+        'estimator__C':[0.1, 1, 10, 100]
     }
     SVCovo_tuned = RandomizedSearchCV(estimator = SVCovo, param_distributions = SVCparam_grid, refit=True, n_iter = 25, cv=3, verbose=1, random_state=42, n_jobs = -1)
     # fit model
