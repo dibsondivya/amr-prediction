@@ -53,7 +53,7 @@ from tqdm import tqdm
 OutputFilename = 'count_new10_kmer'+str(kmer_size)+'_dict.txt'
 
 # Define path to input and output files
-InputPath  = '/rds/general/user/dds122/ephemeral/kmer_'+str(kmer_size)+'_df/'
+InputPath  = '/rds/general/user/dds122/ephemeral/kmer_list_'+str(kmer_size)+'_df/'
 OutputPath = '/rds/general/project/hda-22-23/live/Summer_projects/dds122/data/05-25-2023/'
 
 
