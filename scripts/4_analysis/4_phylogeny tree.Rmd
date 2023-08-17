@@ -1,0 +1,201 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+{'ERR347892': {'true': 5, 'pred': 14},
+ 'SRR3338921': {'true': 2, 'pred': 27},
+ 'SRR6009248': {'true': 2, 'pred': 1},
+ 'SRR6009125': {'true': 20, 'pred': 14},
+ 'SRR6009009': {'true': 1, 'pred': 15},
+ 'ERR272184': {'true': 5, 'pred': 106},
+ 'SRR6009815': {'true': 14, 'pred': 2},
+ 'SRR6009331': {'true': 15, 'pred': 106},
+ 'ERR3465726': {'true': 2, 'pred': 106},
+ 'ERR788986': {'true': 17, 'pred': 5},
+ 'SRR6009044': {'true': 14, 'pred': 17},
+ 'SRR3338586': {'true': 20, 'pred': 14},
+ 'SRR3629596': {'true': 5, 'pred': 1},
+ 'SRR6009302': {'true': 14, 'pred': 5},
+ 'SRR6009493': {'true': 20, 'pred': 106},
+ 'SRR3357625': {'true': 20, 'pred': 14},
+ 'SRR6009245': {'true': 15, 'pred': 5},
+ 'SRR3335918': {'true': 20, 'pred': 14},
+ 'SRR3355874': {'true': 5, 'pred': 14},
+ 'SRR3355907': {'true': 14, 'pred': 2},
+ 'SRR6009556': {'true': 14, 'pred': 2},
+ 'SRR6009688': {'true': 2, 'pred': 106},
+ 'SRR3337716': {'true': 15, 'pred': 5},
+ 'SRR3355795': {'true': 78, 'pred': 2},
+ 'SRR6009407': {'true': 78, 'pred': 106},
+ 'SRR6009538': {'true': 14, 'pred': 1},
+ 'ERR3465733': {'true': 78, 'pred': 5},
+ 'SRR6009246': {'true': 1, 'pred': 20},
+ 'SRR3629432': {'true': 5, 'pred': 17},
+ 'SRR3355845': {'true': 20, 'pred': 14},
+ 'ERR788992': {'true': 17, 'pred': 5},
+ 'ERR3465579': {'true': 20, 'pred': 14},
+ 'SRR6009464': {'true': 14, 'pred': 20},
+ 'SRR6008972': {'true': 20, 'pred': 14},
+ 'SRR6009913': {'true': 20, 'pred': 14},
+ 'ERR347889': {'true': 106, 'pred': 27}}
+```
+
+```{r}
+library(dplyr)
+downsized <- read.csv('noNA_downsized.csv')
+
+names <- c('ERR347892',
+ 'SRR3338921',
+ 'SRR6009248',
+ 'SRR6009125',
+ 'SRR6009009',
+ 'ERR272184',
+ 'SRR6009815',
+ 'SRR6009331',
+ 'ERR3465726',
+ 'ERR788986',
+ 'SRR6009044',
+ 'SRR3338586',
+ 'SRR3629596',
+ 'SRR6009302',
+ 'SRR6009493',
+ 'SRR3357625',
+ 'SRR6009245',
+ 'SRR3335918',
+ 'SRR3355874',
+ 'SRR3355907',
+ 'SRR6009556',
+ 'SRR6009688',
+ 'SRR3337716',
+ 'SRR3355795',
+ 'SRR6009407',
+ 'SRR6009538',
+ 'ERR3465733',
+ 'SRR6009246',
+ 'SRR3629432',
+ 'SRR3355845',
+ 'ERR788992',
+ 'ERR3465579',
+ 'SRR6009464',
+ 'SRR6008972',
+ 'SRR6009913',
+ 'ERR347889')
+
+
+
+
+#downsized %>% filter(accession == 'ERR347892' | accession == 'SRR3338921')
+incorrect  <- downsized %>% filter(accession %in% names) %>% select(c('accession', 'ribotype')) #36 rows
+incorrect['type'] <- 'incorrect'
+
+random20_ska <- downsized %>%  filter(!accession %in% names) %>% group_by(ribotype) %>% sample_n(20) %>% select(c('accession', 'ribotype'))
+#random20_ska  %>% filter(accession %in% names) # check!
+random20_ska['type'] <- 'random'
+
+annot_data <- rbind(random20_ska, incorrect)
+annot_data
+
+
+firstfastq <- paste0('reads/', annot_data$accession,'_1.fastq.gz')
+secondfastq <- paste0('reads/',annot_data$accession,'_2.fastq.gz')
+txt <- paste0(annot_data$accession, " ", firstfastq, " ", secondfastq)
+
+file.create("ADDED_input_sequence.txt")
+fileConn<-file("ADDED_input_sequence.txt")
+writeLines(txt, fileConn)
+close(fileConn)
+``` 
+
+```{r}
+r10 <- read.csv('noNA_random10_ska.csv') 
+r10 <- r10 %>% select(c('accession', 'ribotype'))
+wrongde <- r10  %>% filter(accession %in% names)
+wrongde['type'] <- 'incorrect'
+
+rightde <- r10  %>% filter(!accession %in% names)
+rightde['type'] <- 'random'
+
+annot_for_r10 <- rbind(wrongde, rightde)
+
+
+```
+
+```{r}
+p <- ggplot(tree) + geom_tree() + theme_tree2()
+p %<+% annot_for_r10 + 
+  geom_tiplab(aes(fill = factor(ribotype), color = factor(type)),
+              #color = "black", # color for label font
+              geom = "label",  # labels not text
+              label.padding = unit(0.15, "lines"), # amount of padding around the labels
+              label.size = 0) +
+    theme(legend.position = c(0.5,0.2), 
+        legend.title = element_blank(), # no title
+        legend.key = element_blank()) + # no keys 
+ scale_color_manual(values=c("white", "black"))
+
+```
+
+## ignore below
+```{r}
+ggtree(tree) + geom_text(aes(label=node), hjust=-.3)
+```
+
+
+```{r}
+library(ggtree) 
+library(ggplot2)
+tree <- read.tree("name_tree.tre")
+ggplot(tree) + geom_tree() + theme_tree2() + geom_tiplab(align=TRUE, linesize=.5)
+
+ggplot(tree) + geom_tree() + theme_tree2() + 
+ #geom_tiplab(align=TRUE, linesize=.5) +
+  geom_tiplab(aes(fill = factor(annot_for_r10$ribotype)),
+              color = "black", # color for label font
+              geom = "label",  # labels not text
+              label.padding = unit(0.15, "lines"), # amount of padding around the labels
+              label.size = 0, align=TRUE, linesize=.5)
+
+
+#+ geom_cladelab(data = dat, 
+        mapping = aes(node = node, label = name, color = name), 
+        fontsize = 3)
+
+
+dat <- data.frame(node = c(45, 34), 
+            name = c("test label", "another clade"))
+# The node and label is required when geom="text" 
+## or geom="label" or geom="shadowtext".
+p1 <- p + geom_cladelab(data = dat, 
+        mapping = aes(node = node, label = name, color = name), 
+        fontsize = 3)
+#ggtree(tree) + geom_hilight(node=21, fill="steelblue", alpha=.6) +
+#    geom_hilight(node=17, fill="darkgreen", alpha=.6)
+```
+
+```{r}
+library(readr)
+with_truth_collated_important_kmers_k17 <- read_csv("with_truth_collated_important_kmers_k17.csv")
+with_truth_collated_important_kmers_k17
+#View(with_truth_collated_important_kmers_k17)
+```
+```{r}
+library(ggplot2)
+library(dplyr)
+
+ggplot(data  = with_truth_collated_important_kmers_k17)+
+  geom_bar(mapping = aes(x = factor(ribotype),
+                         y  = importance,
+                         fill =  feature_ribotype),
+           color = 'black',
+           stat='identity',
+           position='dodge') + 
+  xlab("read file ribotype") + 
+  ylab("feature importance [0,1]") +
+  labs(fill='library ribotype',
+       title='Feature Importance for Top Three k-mers identified per Ribotype from read files',
+       subtitle='Colored by unique ribotype that the k-mer belongs to') +
+  facet_wrap(vars(with_truth_collated_important_kmers_k17$model), nrow = 3, scales = "free")
+```
+
