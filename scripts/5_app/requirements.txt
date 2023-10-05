@@ -6,3 +6,6 @@ scipy
 collections
 scikit-learn
 pandas
+python-dateutils
+six
+pytz
