@@ -41,4 +41,4 @@ Project has yet to be deployed.
 * Allow upload of file of genomes and output of text file of predicted ribotypes
 
 ## Contact
-If iin need of assistance, please do reach out at dds122@ic.ac.uk.
+If in need of assistance, please do reach out at dds122@ic.ac.uk.
