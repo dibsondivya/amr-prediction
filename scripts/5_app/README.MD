@@ -1,3 +1,3 @@
 # Model Deployment App
 
-!(UI)[https://github.com/dibsondivya/amr-prediction/blob/main/scripts/5_app/shortern%20ui%20vid.mp4]
+https://github.com/dibsondivya/amr-prediction/assets/56643379/697d03d2-6f2d-4fbf-9a7d-d639ef61ca73
