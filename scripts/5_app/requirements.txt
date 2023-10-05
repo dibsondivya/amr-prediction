@@ -1,0 +1,7 @@
+numpy
+scipy
+joblib
+subprocess
+scikit-learn
+Flask
+pandas
