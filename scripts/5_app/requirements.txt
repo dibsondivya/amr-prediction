@@ -1,7 +1,8 @@
+Flask
+subprocess
+joblib
 numpy
 scipy
-joblib
-subprocess
+collections
 scikit-learn
-Flask
 pandas
