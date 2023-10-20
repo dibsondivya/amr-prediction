@@ -1,5 +1,5 @@
 # Model Deployment App
-The PCR-ribotype of uploaded Clostridioides Difficile genomes is predicted in real-time through this applcation.
+The PCR-ribotype of uploaded Clostridioides Difficile genomes is predicted in real-time through this application.
 
 ##  User Interface
 https://github.com/dibsondivya/amr-prediction/assets/56643379/697d03d2-6f2d-4fbf-9a7d-d639ef61ca73
